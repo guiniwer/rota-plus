@@ -2,6 +2,7 @@
    Rota+ — tokens de design (mesma paleta do Figma)
    ========================================================== */
 :root {
+  color-scheme: dark;
   --bg: #1a0d31;
   --side: #140a26;
   --card: #2a1c43;

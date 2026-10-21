@@ -1,6 +1,18 @@
 import { useId } from 'react'
 
-/** Campo de formulário com rótulo em caixa alta. Aceita input, select ou textarea. */
+const renderOption = (opt) => {
+  const { value, label } = typeof opt === 'string' ? { value: opt, label: opt } : opt
+  return (
+    <option key={value} value={value}>
+      {label}
+    </option>
+  )
+}
+
+/**
+ * Campo de formulário com rótulo em caixa alta. Aceita input, select ou textarea.
+ * Em select, options pode ter grupos: [{ grupo: 'Sul', options: [...] }].
+ */
 export default function Field({ label, as = 'input', options, error, children, ...props }) {
   const id = useId()
   const control = { id, 'aria-invalid': Boolean(error), ...props }
@@ -9,14 +21,15 @@ export default function Field({ label, as = 'input', options, error, children, .
   if (as === 'select') {
     input = (
       <select className="select" {...control}>
-        {options.map((opt) => {
-          const { value, label: text } = typeof opt === 'string' ? { value: opt, label: opt } : opt
-          return (
-            <option key={value} value={value}>
-              {text}
-            </option>
-          )
-        })}
+        {options.map((opt) =>
+          opt.grupo ? (
+            <optgroup key={opt.grupo} label={opt.grupo}>
+              {opt.options.map(renderOption)}
+            </optgroup>
+          ) : (
+            renderOption(opt)
+          ),
+        )}
       </select>
     )
   } else if (as === 'textarea') {

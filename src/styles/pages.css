@@ -37,6 +37,7 @@
 
 .public-section {
   padding: 72px 80px;
+  scroll-margin-top: 72px; /* não fica escondida atrás do cabeçalho fixo */
 }
 .public-section.alt {
   background: #21123d;
@@ -281,5 +282,28 @@
   }
   .eta-number {
     font-size: 56px;
+  }
+}
+
+/* ---------- cotação ---------- */
+.cotacao-total {
+  display: block;
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--white);
+}
+.cotacao-resultado {
+  position: sticky;
+  top: 96px;
+}
+@media (max-width: 1023px) {
+  .cotacao-resultado {
+    position: static;
+  }
+}
+@media (max-width: 767px) {
+  .cotacao-total {
+    font-size: 32px;
   }
 }

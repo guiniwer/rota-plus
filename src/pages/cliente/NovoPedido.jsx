@@ -10,14 +10,17 @@ import OptionCard from '../../components/ui/OptionCard'
 import Segmented from '../../components/ui/Segmented'
 import { useApp } from '../../context/AppContext'
 import { brl, num } from '../../utils/format'
-import { FATOR_CUBAGEM, REGIOES, TAXA_EXPRESSA, TAXA_GPS, calcularFrete } from '../../utils/frete'
+import RotaCidades from '../../components/entregas/RotaCidades'
+import { nomeCidade } from '../../data/cidades'
+import { FATOR_CUBAGEM, TAXA_EXPRESSA, TAXA_GPS, calcularFrete } from '../../utils/frete'
 
 const INICIAL = {
   destinatario: '',
   telefone: '',
-  origem: '',
-  destino: '',
-  regiao: 'nacional',
+  enderecoOrigem: '',
+  enderecoDestino: '',
+  origem: 'recife-pe', // cidades (ids de data/cidades.js)
+  destino: 'saopaulo-sp',
   tipoCarga: 'caixa',
   comprimento: '35',
   largura: '25',
@@ -43,8 +46,8 @@ export default function NovoPedido() {
     e.preventDefault()
     const n = {}
     if (!form.destinatario.trim()) n.destinatario = 'Informe o destinatário.'
-    if (!form.origem.trim()) n.origem = 'Informe o endereço de retirada.'
-    if (!form.destino.trim()) n.destino = 'Informe o endereço de entrega.'
+    if (!form.enderecoOrigem.trim()) n.enderecoOrigem = 'Informe o endereço de retirada.'
+    if (!form.enderecoDestino.trim()) n.enderecoDestino = 'Informe o endereço de entrega.'
     if (form.tipoCarga === 'caixa' && !(Number(form.peso) > 0)) n.peso = 'Peso inválido.'
     setErros(n)
     if (Object.keys(n).length) {
@@ -54,8 +57,8 @@ export default function NovoPedido() {
     const id = await criarPedido({
       remetente: 'Você',
       destinatario: form.destinatario,
-      origem: form.origem,
-      destino: form.destino,
+      origem: `${form.enderecoOrigem} — ${nomeCidade(form.origem)}`,
+      destino: `${form.enderecoDestino} — ${nomeCidade(form.destino)}`,
       tipoCarga: form.tipoCarga === 'caixa' ? `Caixa · ${form.descricao || 'diversos'}` : 'Documentos',
       pesoTaxado: frete.pesoTaxado,
       modalidade: form.modalidade,
@@ -73,18 +76,20 @@ export default function NovoPedido() {
       <form className="grid-aside" onSubmit={enviar} noValidate>
         <div className="stack">
           <Card title="1. Endereços">
+            <RotaCidades origem={form.origem} destino={form.destino} onChange={(rota) => setForm((f) => ({ ...f, ...rota }))} />
             <div className="grid-form">
+              <Field label="Endereço de retirada (origem)" value={form.enderecoOrigem} onChange={set('enderecoOrigem')} error={erros.enderecoOrigem} placeholder="Rua, número e bairro" />
+              <Field label="Endereço de entrega (destino)" value={form.enderecoDestino} onChange={set('enderecoDestino')} error={erros.enderecoDestino} placeholder="Avenida, número e bairro" />
               <Field label="Nome do destinatário" value={form.destinatario} onChange={set('destinatario')} error={erros.destinatario} placeholder="Maria Silva" />
               <Field label="Telefone" type="tel" value={form.telefone} onChange={set('telefone')} placeholder="(11) 98765-4321" />
-              <Field label="Endereço de retirada (origem)" value={form.origem} onChange={set('origem')} error={erros.origem} placeholder="Rua, número e bairro" />
-              <Field label="Endereço de entrega (destino)" value={form.destino} onChange={set('destino')} error={erros.destino} placeholder="Avenida, número e bairro" />
-              <Field label="Distância / região do destino" as="select" value={form.regiao} onChange={set('regiao')} options={REGIOES} />
             </div>
           </Card>
 
           <Card title="2. Especificações da carga">
             <Field label="Tipo de carga">
               <Segmented
+                block
+                label="Tipo de carga"
                 value={form.tipoCarga}
                 onChange={set('tipoCarga')}
                 options={[

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
@@ -8,7 +8,10 @@ import KeyValue from '../../components/ui/KeyValue'
 import MapView, { MapChip } from '../../components/ui/MapView'
 import Segmented from '../../components/ui/Segmented'
 import { brl, num } from '../../utils/format'
-import { REGIOES, calcularFrete } from '../../utils/frete'
+import RotaCidades from '../../components/entregas/RotaCidades'
+import { useApp } from '../../context/AppContext'
+import { nomeCidade } from '../../data/cidades'
+import { TAXA_EXPRESSA, TAXA_GPS, calcularFrete } from '../../utils/frete'
 
 const DIFERENCIAIS = [
   { icon: 'send', titulo: 'Entrega expressa', texto: 'Coleta imediata e entrega no menor tempo possível dentro da cidade.' },
@@ -28,15 +31,24 @@ const PARA_EMPRESAS = [
 /** Página inicial pública: apresentação, serviços e cotação rápida. */
 export default function Landing() {
   const navigate = useNavigate()
-  const [cotacao, setCotacao] = useState({ tipoCarga: 'documento', regiao: 'cidade', modalidade: 'normal', rastreio: 'cd', peso: '1', comprimento: '30', largura: '20', altura: '15' })
-  const [resultado, setResultado] = useState(null)
+  const { usuario } = useApp()
+  const [cotacao, setCotacao] = useState({
+    origem: 'recife-pe',
+    destino: 'saopaulo-sp',
+    tipoCarga: 'documento',
+    modalidade: 'normal',
+    rastreio: 'cd',
+    peso: '1',
+    comprimento: '30',
+    largura: '20',
+    altura: '15',
+  })
 
-  const set = (campo) => (e) => setCotacao((c) => ({ ...c, [campo]: e.target ? e.target.value : e }))
+  const set = (campo) => (e) => setCotacao((c) => ({ ...c, [campo]: e?.target ? e.target.value : e }))
+  // recalcula a cada alteração — sem precisar clicar em "calcular"
+  const resultado = useMemo(() => calcularFrete({ ...cotacao, valorNF: 0 }), [cotacao])
 
-  const calcular = (e) => {
-    e.preventDefault()
-    setResultado(calcularFrete({ ...cotacao, valorNF: 0 }))
-  }
+  const solicitar = () => navigate(usuario?.perfil === 'cliente' ? '/cliente/novo-pedido' : '/login', { state: { perfil: 'cliente' } })
 
   return (
     <>
@@ -111,71 +123,82 @@ export default function Landing() {
       </section>
 
       <section className="public-section" id="cotacao">
-        <div className="container grid-aside">
-          <Card title="Faça uma cotação">
-            <form className="stack-sm" style={{ gap: 16 }} onSubmit={calcular}>
-              <div className="grid-form">
-                <Field label="Destino" as="select" value={cotacao.regiao} onChange={set('regiao')} options={REGIOES} />
-                <Field
-                  label="Tipo de carga"
-                  as="select"
-                  value={cotacao.tipoCarga}
-                  onChange={set('tipoCarga')}
-                  options={[
-                    { value: 'documento', label: 'Documentos / Envelopes' },
-                    { value: 'caixa', label: 'Caixas' },
-                  ]}
-                />
-              </div>
-              {cotacao.tipoCarga === 'caixa' && (
-                <div className="grid-form-4">
-                  <Field label="Compr. (cm)" type="number" min="1" value={cotacao.comprimento} onChange={set('comprimento')} />
-                  <Field label="Largura (cm)" type="number" min="1" value={cotacao.largura} onChange={set('largura')} />
-                  <Field label="Altura (cm)" type="number" min="1" value={cotacao.altura} onChange={set('altura')} />
-                  <Field label="Peso (kg)" type="number" min="0.1" step="0.1" value={cotacao.peso} onChange={set('peso')} />
+        <div className="container">
+          <h2 className="section-title">Faça uma cotação</h2>
+          <p className="section-sub">Escolha as cidades e o tipo de envio — o valor é calculado na hora.</p>
+          <div className="grid-aside cotacao">
+            <Card>
+              <form className="stack-sm" style={{ gap: 20 }} onSubmit={(e) => e.preventDefault()}>
+                <RotaCidades origem={cotacao.origem} destino={cotacao.destino} onChange={(rota) => setCotacao((c) => ({ ...c, ...rota }))} />
+
+                <Field label="Tipo de carga">
+                  <Segmented
+                    block
+                    label="Tipo de carga"
+                    value={cotacao.tipoCarga}
+                    onChange={set('tipoCarga')}
+                    options={[
+                      { value: 'documento', label: 'Documentos / Envelopes' },
+                      { value: 'caixa', label: 'Caixas' },
+                    ]}
+                  />
+                </Field>
+                {cotacao.tipoCarga === 'caixa' && (
+                  <div className="grid-form-4">
+                    <Field label="Compr. (cm)" type="number" min="1" inputMode="numeric" value={cotacao.comprimento} onChange={set('comprimento')} />
+                    <Field label="Largura (cm)" type="number" min="1" inputMode="numeric" value={cotacao.largura} onChange={set('largura')} />
+                    <Field label="Altura (cm)" type="number" min="1" inputMode="numeric" value={cotacao.altura} onChange={set('altura')} />
+                    <Field label="Peso (kg)" type="number" min="0.1" step="0.1" inputMode="decimal" value={cotacao.peso} onChange={set('peso')} />
+                  </div>
+                )}
+
+                <div className="grid-form">
+                  <Field label="Tipo de entrega">
+                    <Segmented
+                      block
+                      label="Tipo de entrega"
+                      value={cotacao.modalidade}
+                      onChange={set('modalidade')}
+                      options={[
+                        { value: 'normal', label: 'Normal' },
+                        { value: 'expressa', label: `Mais rápida +${TAXA_EXPRESSA}` },
+                      ]}
+                    />
+                  </Field>
+                  <Field label="Tipo de rastreamento">
+                    <Segmented
+                      block
+                      label="Tipo de rastreamento"
+                      value={cotacao.rastreio}
+                      onChange={set('rastreio')}
+                      options={[
+                        { value: 'cd', label: 'Por etapas (CD)' },
+                        { value: 'gps', label: `GPS ao vivo +${TAXA_GPS}` },
+                      ]}
+                    />
+                  </Field>
                 </div>
-              )}
-              <div className="grid-form">
-                <Field label="Tipo de entrega">
-                  <Segmented
-                    value={cotacao.modalidade}
-                    onChange={set('modalidade')}
-                    options={[
-                      { value: 'normal', label: 'Normal' },
-                      { value: 'expressa', label: 'Mais rápida' },
-                    ]}
-                  />
-                </Field>
-                <Field label="Tipo de rastreamento">
-                  <Segmented
-                    value={cotacao.rastreio}
-                    onChange={set('rastreio')}
-                    options={[
-                      { value: 'cd', label: 'Centro de distribuição' },
-                      { value: 'gps', label: 'GPS (+R$ 50)' },
-                    ]}
-                  />
-                </Field>
+              </form>
+            </Card>
+
+            <Card className="cotacao-resultado" aria-live="polite">
+              <span className="label">Estimativa</span>
+              <div>
+                <strong className="cotacao-total">{brl(resultado.total)}</strong>
+                <p className="muted">
+                  {nomeCidade(cotacao.origem)} → {nomeCidade(cotacao.destino)}
+                </p>
               </div>
-              <Button type="submit" variant="violet">
-                Calcular frete
+              <KeyValue label="Prazo" value={resultado.prazoTexto} valueColor="var(--pink)" />
+              <KeyValue label="Distância" value={`${resultado.km.toLocaleString('pt-BR')} km`} />
+              <KeyValue label="Peso cobrado" value={`${num(resultado.pesoTaxado)} kg`} />
+              <KeyValue label="Rastreamento" value={cotacao.rastreio === 'gps' ? 'GPS em tempo real' : 'Por etapas'} />
+              <Button block onClick={solicitar} icon="send">
+                Solicitar envio
               </Button>
-            </form>
-          </Card>
-          <Card title="Estimativa">
-            {resultado ? (
-              <>
-                <KeyValue label="Peso cobrado" value={`${num(resultado.pesoTaxado)} kg`} />
-                <KeyValue label="Prazo" value={resultado.prazoTexto} />
-                <KeyValue label="Total estimado" value={brl(resultado.total)} valueColor="var(--pink)" strong />
-                <Button block onClick={() => navigate('/login')}>
-                  Solicitar envio
-                </Button>
-              </>
-            ) : (
-              <p className="muted">Preencha os dados ao lado para ver o valor e o prazo estimados da sua entrega.</p>
-            )}
-          </Card>
+              <p className="small grey">Valor sem seguro da mercadoria. O ad valorem é calculado no pedido, com o valor da nota fiscal.</p>
+            </Card>
+          </div>
         </div>
       </section>
     </>

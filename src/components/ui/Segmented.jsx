@@ -1,7 +1,10 @@
-/** Grupo de botões em que apenas um fica ativo (abas / filtros). */
-export default function Segmented({ options, value, onChange }) {
+/**
+ * Grupo de botões em que apenas um fica ativo (abas / filtros).
+ * block: ocupa toda a largura, com botões de mesmo tamanho (uso em formulários).
+ */
+export default function Segmented({ options, value, onChange, block, label }) {
   return (
-    <div className="segmented" role="tablist">
+    <div className={`segmented ${block ? 'block' : ''}`} role="tablist" aria-label={label}>
       {options.map((opt) => {
         const { value: v, label } = typeof opt === 'string' ? { value: opt, label: opt } : opt
         return (

@@ -55,6 +55,8 @@ O visual segue o protótipo feito no Figma (telas mobile originais + versões de
 
 ### Regras de frete (Novo pedido e Cotação)
 
+- **Origem e destino:** 48 cidades reais (todas as capitais, os principais polos de Pernambuco e outras cidades grandes), agrupadas por região. A distância é estimada pelas coordenadas (fórmula de Haversine × 1,25, fator médio de estrada). Recife → São Paulo dá cerca de 2.660 km.
+- **Prazo:** depende da distância (até 50 km: 1 dia; até 300 km: 1–2; até 1.000 km: 2–4; até 2.000 km: 3–5; acima: 4–7) e fica mais curto na entrega mais rápida.
 - **Peso cubado** = (C × L × A em m³) × 300. O valor cobrado usa o **maior** entre o peso real e o peso cubado.
 - **Tipo de carga:** Documentos/Envelopes (peso fixo) ou Caixas (com dimensões e peso).
 - **Tipo de entrega:** Normal ou **Mais rápida** (+ R$ 15,00).
