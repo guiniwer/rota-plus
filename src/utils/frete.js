@@ -5,11 +5,11 @@ export const FATOR_CUBAGEM = 300 // rodoviário: kg por m³
 export const TAXA_GPS = 50
 export const TAXA_EXPRESSA = 15
 export const PESO_DOCUMENTO = 0.3
-const FATOR_ESTRADA = 1.25 // a estrada é, em média, 25% mais longa que a linha reta
+export const FATOR_ESTRADA = 1.25 // a estrada é, em média, 25% mais longa que a linha reta
 const KM_URBANO = 15 // entrega dentro da mesma cidade
 
 /** Distância em linha reta entre duas coordenadas (fórmula de Haversine). */
-function haversineKm(a, b) {
+export function haversineKm(a, b) {
   const rad = (g) => (g * Math.PI) / 180
   const dLat = rad(b.lat - a.lat)
   const dLng = rad(b.lng - a.lng)

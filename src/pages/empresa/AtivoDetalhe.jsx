@@ -14,9 +14,9 @@ import Modal from '../../components/ui/Modal'
 import QrCode from '../../components/ui/QrCode'
 import Segmented from '../../components/ui/Segmented'
 import Timeline from '../../components/ui/Timeline'
-import { AtivoBadge } from '../../components/entregas/StatusBadge'
+import { AtivoBadge, EntregaBadge } from '../../components/entregas/StatusBadge'
 import { useApp } from '../../context/AppContext'
-import { COR_STATUS_ATIVO, RESPONSAVEIS, toMarkers } from '../../utils/ativos'
+import { COR_STATUS_ATIVO, toMarkers } from '../../utils/ativos'
 import { brl } from '../../utils/format'
 import { TIPO_ATIVO_ICON } from '../../utils/status'
 
@@ -25,11 +25,12 @@ const DIAS = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D', 'S', 'T', 'Q', 'Q', 'S', 'S', '
 export default function AtivoDetalhe() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { ativos, registrarMovimentacao, transferirAtivo, marcarExtraviado, toast } = useApp()
+  const { ativos, entregas, equipe, registrarMovimentacao, transferirAtivo, marcarExtraviado, toast } = useApp()
   const ativo = ativos.find((a) => a.id === id)
+  const responsaveis = equipe.map((p) => p.nome)
   const [modal, setModal] = useState(null) // 'mov' | 'transferir' | 'extraviado'
-  const [mov, setMov] = useState({ tipo: 'checkout', responsavel: RESPONSAVEIS[0], local: '' })
-  const [destino, setDestino] = useState(RESPONSAVEIS[1])
+  const [mov, setMov] = useState({ tipo: 'checkout', responsavel: responsaveis[0] ?? '', local: '' })
+  const [destino, setDestino] = useState(responsaveis[1] ?? responsaveis[0] ?? '')
 
   if (!ativo) {
     return (
@@ -46,6 +47,8 @@ export default function AtivoDetalhe() {
   const horasUso = ativo.uso.reduce((s, h) => s + h, 0)
   const utilizacao = Math.round((horasUso / (ativo.uso.length * 10)) * 100)
   const cor = COR_STATUS_ATIVO[ativo.status]
+  // ativo do tipo Carga: a situação vem da entrega vinculada
+  const entrega = ativo.entregaId ? entregas.find((e) => e.id === ativo.entregaId) : null
 
   const salvarMov = (e) => {
     e.preventDefault()
@@ -57,7 +60,7 @@ export default function AtivoDetalhe() {
   return (
     <Page
       title={ativo.nome}
-      subtitle={`Ativos › ${ativo.id} · ${ativo.tipo}`}
+      subtitle={`Ativos › ${ativo.id} · ${ativo.tipo}${ativo.entregaId ? ` · entrega ${ativo.entregaId}` : ''}`}
       actions={
         <Button variant="secondary" icon="back" onClick={() => navigate('/empresa/ativos')}>
           Voltar
@@ -86,11 +89,29 @@ export default function AtivoDetalhe() {
               <KeyValue label="Identificação" value={ativo.identificacao} />
             </div>
             <div className="stack-sm">
-              <KeyValue label="Valor do ativo" value={brl(ativo.valor)} />
-              <KeyValue label="Uso nos últimos 14 dias" value={`${horasUso} h`} />
-              <KeyValue label="Utilização" value={`${utilizacao}%`} valueColor={utilizacao < 50 ? 'var(--amber)' : 'var(--green)'} />
+              <KeyValue label={entrega ? 'Valor declarado' : 'Valor do ativo'} value={ativo.valor ? brl(ativo.valor) : '—'} />
+              {entrega ? (
+                <>
+                  <KeyValue label="Categoria" value="Carga (entrega)" />
+                  <KeyValue label="Destino" value={entrega.destino} />
+                </>
+              ) : (
+                <>
+                  <KeyValue label="Uso nos últimos 14 dias" value={`${horasUso} h`} />
+                  <KeyValue label="Utilização" value={`${utilizacao}%`} valueColor={utilizacao < 50 ? 'var(--amber)' : 'var(--green)'} />
+                </>
+              )}
             </div>
           </div>
+          {entrega ? (
+            <div className="row wrap">
+              <EntregaBadge status={entrega.status} />
+              <span className="small muted grow">A situação desta carga acompanha o status da entrega, atualizado pelo entregador.</span>
+              <Button variant="violet" icon="truck" onClick={() => navigate(`/empresa/entregas?q=${entrega.id}`)}>
+                Abrir entrega
+              </Button>
+            </div>
+          ) : (
           <div className="row wrap">
             <Button variant="violet" icon="qr" onClick={() => setModal('mov')}>
               Registrar check-in / out
@@ -104,6 +125,7 @@ export default function AtivoDetalhe() {
               </Button>
             )}
           </div>
+          )}
         </Card>
         <Card style={{ alignItems: 'center', textAlign: 'center' }}>
           <QrCode value={ativo.id} size={150} />
@@ -119,10 +141,16 @@ export default function AtivoDetalhe() {
         <Card title="Localização">
           <MapView showRoute={false} markers={toMarkers([ativo])} selectedId={ativo.id} height={260} />
         </Card>
-        <Card title="Uso nas últimas 2 semanas (horas/dia)">
-          <BarChart data={ativo.uso.map((h, i) => ({ label: DIAS[i], value: h, color: h === 0 ? 'var(--line)' : 'var(--purple)' }))} max={10} />
-          {utilizacao < 50 && <p className="small" style={{ color: 'var(--purple)' }}>Sugestão: ativo ocioso — avalie realocar para outra equipe ou obra.</p>}
-        </Card>
+        {entrega ? (
+          <Card title="Eventos da entrega">
+            <Timeline items={entrega.eventos} />
+          </Card>
+        ) : (
+          <Card title="Uso nas últimas 2 semanas (horas/dia)">
+            <BarChart data={ativo.uso.map((h, i) => ({ label: DIAS[i], value: h, color: h === 0 ? 'var(--line)' : 'var(--purple)' }))} max={10} />
+            {utilizacao < 50 && <p className="small" style={{ color: 'var(--purple)' }}>Sugestão: ativo ocioso — avalie realocar para outra equipe ou obra.</p>}
+          </Card>
+        )}
       </div>
 
       <Card title="Histórico de movimentação e responsáveis">
@@ -139,7 +167,7 @@ export default function AtivoDetalhe() {
               { value: 'checkin', label: 'Check-in (devolução/local)' },
             ]}
           />
-          <Field label="Responsável" as="select" value={mov.responsavel} onChange={(e) => setMov({ ...mov, responsavel: e.target.value })} options={RESPONSAVEIS} />
+          <Field label="Responsável" as="select" value={mov.responsavel} onChange={(e) => setMov({ ...mov, responsavel: e.target.value })} options={responsaveis} />
           {mov.tipo === 'checkin' && <Field label="Local" value={mov.local} onChange={(e) => setMov({ ...mov, local: e.target.value })} placeholder="Almoxarifado CD" />}
           <Button type="submit" block>
             Confirmar
@@ -148,7 +176,7 @@ export default function AtivoDetalhe() {
       </Modal>
 
       <Modal title="Transferir responsável" open={modal === 'transferir'} onClose={() => setModal(null)}>
-        <Field label="Novo responsável" as="select" value={destino} onChange={(e) => setDestino(e.target.value)} options={RESPONSAVEIS} />
+        <Field label="Novo responsável" as="select" value={destino} onChange={(e) => setDestino(e.target.value)} options={responsaveis} />
         <Button
           block
           onClick={() => {

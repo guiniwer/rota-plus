@@ -14,3 +14,9 @@ export const EMPRESA_DEMO = {
   cnpj: '12.345.678/0001-90',
   email: 'luis@logisuape.com.br',
 }
+
+// entregador da mesma empresa (entra pela aba "Empresa" com o CNPJ acima)
+export const ENTREGADOR_DEMO = {
+  nome: 'Thiago Rodrigues',
+  email: 'thiago@logisuape.com.br',
+}

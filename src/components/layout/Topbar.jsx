@@ -14,6 +14,7 @@ export default function Topbar({ title, subtitle, actions }) {
 
   const temPendencia =
     perfil === 'empresa' ? alertas.some((a) => a.status === 'aberto') : notificacoes.some((n) => !n.lida)
+  const sino = { empresa: { label: 'Alertas', to: '/empresa/alertas' }, cliente: { label: 'Notificações', to: '/cliente/notificacoes' } }[perfil]
 
   const buscar = (e) => {
     e.preventDefault()
@@ -24,6 +25,7 @@ export default function Topbar({ title, subtitle, actions }) {
     if (perfil === 'empresa' && ativo) navigate(`/empresa/ativos/${ativo.id}`)
     else if (perfil === 'empresa' && entrega) navigate(`/empresa/entregas?q=${entrega.id}`)
     else if (perfil === 'cliente' && entrega && entrega.cliente === usuario?.nome) navigate(`/cliente/status/${entrega.id}`)
+    else if (perfil === 'entregador' && entrega) navigate(`/entregador?registrar=${entrega.id}`)
     else toast(`Nada encontrado para "${busca}".`)
     setBusca('')
   }
@@ -43,18 +45,18 @@ export default function Topbar({ title, subtitle, actions }) {
           <SearchInput
             value={busca}
             onChange={setBusca}
-            placeholder={perfil === 'empresa' ? 'Buscar entrega ou ativo…' : 'Buscar código de rastreio…'}
+            placeholder={perfil === 'empresa' ? 'Buscar entrega ou ativo…' : 'Buscar código da entrega…'}
           />
         </form>
-        <button
-          className="icon-button"
-          aria-label={perfil === 'empresa' ? 'Alertas' : 'Notificações'}
-          onClick={() => navigate(perfil === 'empresa' ? '/empresa/alertas' : '/cliente/notificacoes')}
-        >
-          <Icon name="bell" />
-          {temPendencia && <span className="dot" />}
+        {sino && (
+          <button className="icon-button" aria-label={sino.label} onClick={() => navigate(sino.to)}>
+            <Icon name="bell" />
+            {temPendencia && <span className="dot" />}
+          </button>
+        )}
+        <button className="avatar-button" onClick={() => navigate(`/${perfil}/perfil`)} aria-label="Meu perfil">
+          <Avatar name={usuario?.nome} size={44} />
         </button>
-        <Avatar name={usuario?.nome} size={44} />
       </div>
     </header>
   )

@@ -36,3 +36,9 @@ export function autenticar(req, res, next) {
 /** Middleware: restringe a rota a um perfil (ex.: só empresa). */
 export const exigirPerfil = (perfil) => (req, res, next) =>
   req.usuario.perfil === perfil ? next() : res.status(403).json({ erro: 'Acesso permitido apenas para o perfil ' + perfil + '.' })
+
+/** Middleware: restringe a rota a uma função da empresa ('admin' ou 'entregador'). */
+export const exigirFuncao = (...funcoes) => (req, res, next) =>
+  req.usuario.perfil === 'empresa' && funcoes.includes(req.usuario.funcao)
+    ? next()
+    : res.status(403).json({ erro: funcoes.includes('admin') ? 'Acesso permitido apenas para administradores.' : 'Acesso permitido apenas para entregadores.' })

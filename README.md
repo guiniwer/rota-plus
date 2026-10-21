@@ -29,13 +29,40 @@ Muitas ainda dependem de ligações, mensagens e planilhas. O resultado são atr
 
 ## Solução proposta
 
-O **Rota+** é um site responsivo com três frentes:
+O **Rota+** é um site responsivo com quatro frentes:
 
 | Frente | Para quem | O que resolve |
 |---|---|---|
 | **Site público** | Qualquer pessoa | Apresentação, cotação de frete e **rastreio sem login** (código + CPF/CNPJ) |
 | **Área do cliente** | Quem envia ou recebe | Fazer pedido com cálculo de frete, acompanhar no mapa, ver previsão, histórico, notificações e avaliar a entrega |
-| **Área da empresa** | Gestores e equipes de campo | Painel da operação, entregas, ativos (QR/RFID/GPS), mapa ao vivo, central de alertas com fluxo de resposta, equipes, relatórios, configurações (LGPD, integrações) e **app de campo** com comprovante (foto + assinatura) e modo offline |
+| **Visão operacional** | Administrador da empresa | Painel da operação, entregas (atribuição a entregadores), ativos (QR/RFID/GPS), mapa ao vivo, central de alertas com fluxo de resposta, equipes (com a rota de cada entregador), relatórios e configurações (LGPD, integrações) |
+| **Tela do entregador** | Entregador da empresa | Só as entregas atribuídas a ele, na ordem da **rota otimizada** (mapa real + Google Maps), botões para atualizar o status a cada etapa, comprovante (foto + assinatura) e modo offline |
+
+Todos os perfis têm uma página **Meu perfil** (dados de contato, troca de senha e resumo da conta).
+
+### Perfis da empresa: administrador e entregador
+
+No cadastro da empresa a pessoa escolhe a função:
+
+- **Administrador**: cadastra a empresa (CNPJ) e acessa só a visão operacional.
+- **Entregador**: informa o CNPJ de uma empresa já cadastrada e acessa só a tela do entregador. Se tentar abrir outra área, é redirecionado. A API também bloqueia: o entregador só lista e atualiza as entregas atribuídas a ele.
+
+Cada atualização feita pelo entregador grava um evento ("… · por Thiago Rodrigues"), atualiza o ativo da carga e notifica o cliente. A visão operacional busca novidades a cada 10 s, então o administrador vê o pedido e o entregador atualizados sem recarregar a página.
+
+### Otimização de rota (API)
+
+`GET /api/rotas/otimizada` calcula a melhor ordem de visita das entregas pendentes do entregador, saindo do centro de distribuição mais próximo:
+
+1. Usa a API pública do **[OSRM](https://project-osrm.org/)** (serviço *trip*, sobre o OpenStreetMap), que devolve a ordem das paradas, a distância e o tempo pelas ruas e o traçado para o mapa.
+2. Sem internet, cai para uma **otimização local**: vizinho mais próximo + melhoria **2-opt**, com distâncias de Haversine × 1,25.
+
+A resposta inclui a economia em km em relação à ordem original e um link do Google Maps com todas as paradas. O mapa usa **Leaflet** + OpenStreetMap.
+
+### Toda entrega é um ativo
+
+Ao criar uma entrega (pelo cliente ou pelo administrador), o sistema cria um ativo da categoria **Carga** (`CRG-…`), ligado à entrega. O status, o local e o responsável desse ativo acompanham a entrega automaticamente.
+
+Os ativos são registrados pelo **tipo genérico**, não pelo item específico enviado: "Caixa", "Envelope / documentos", "Palete", "Contêiner" ou "Volume" para cargas; "Gerador de energia", "Van de entrega", "Furadeira" etc. para os bens da empresa. A categoria (Veículo, Equipamento, Ferramenta ou Carga) aparece em coluna própria.
 
 O visual segue o protótipo feito no Figma (telas mobile originais + versões desktop).
 
@@ -46,7 +73,7 @@ O visual segue o protótipo feito no Figma (telas mobile originais + versões de
 | Localização, responsável, status e histórico do ativo | `Ativos` › `Detalhe do ativo` (histórico de movimentação, uso em horas/dia, check-in/out, transferência) |
 | Alertas: atraso, desvio, inatividade, perda de sinal, uso indevido | `Central de alertas`, com contadores por tipo, prazo de resposta (SLA), checklist do fluxo de resposta, assumir e resolver |
 | Painel com visão geral, pendências, ativos disponíveis e gargalos | `Painel da operação` |
-| Interface simples para a equipe de campo | `App de campo` (rota do dia, registro com foto, assinatura e GPS, modo offline com fila de sincronização) e `Escanear QR Code` |
+| Interface simples para a equipe de campo | `Tela do entregador` (rota otimizada, um botão por etapa, registro com foto, assinatura e GPS, modo offline com fila de sincronização) |
 | Comunicação com clientes | Rastreio público, link de rastreio compartilhável, notificações, reagendamento e avaliação |
 | Relatórios de desempenho | `Relatórios` (no prazo por período, utilização por tipo de ativo, alertas tratados) com exportação em CSV |
 | LGPD e risco de controle excessivo | Rastreamento de pessoas só no expediente, termo de ciência e anonimização após 90 dias (`Equipes` e `Configurações`) |
@@ -73,12 +100,14 @@ O visual segue o protótipo feito no Figma (telas mobile originais + versões de
 - **React Router** (`HashRouter`)
 - **HTML, CSS puro** (variáveis CSS, Grid e Flexbox, media queries) e **JavaScript (ES2023)**
 - Sem bibliotecas de UI: todos os componentes foram feitos no projeto
+- **Leaflet** + OpenStreetMap só para o mapa real da rota (carregado sob demanda)
 
 **Back-end e banco de dados**
 - **Node.js + Express 5**: API REST em `/api`
 - **SQLite** pelo módulo nativo `node:sqlite` do Node.js. Não é preciso instalar servidor de banco nem compilar nada: o banco é um arquivo (`server/data/rota.db`) criado e populado automaticamente na primeira execução
 - Senhas com hash **scrypt** + salt; sessões por token (`Authorization: Bearer`)
-- Controle de acesso por perfil: o cliente só vê as próprias entregas; ativos, alertas e equipe são exclusivos da empresa
+- Controle de acesso por perfil e função: o cliente só vê as próprias entregas; o entregador só vê e atualiza as entregas atribuídas a ele; ativos, alertas e equipe são exclusivos do administrador
+- Otimização de rota com a API do **OSRM** (com alternativa local, vizinho mais próximo + 2-opt)
 
 ## Banco de dados
 
@@ -96,15 +125,15 @@ Toda ação na interface grava no banco: pedido, mudança de status, check-in/ou
 
 | Tabela | Conteúdo |
 |---|---|
-| `usuarios` | Clientes e empresas (perfil, e-mail único, hash da senha, CPF/CNPJ) |
+| `usuarios` | Clientes e empresas (perfil, **função admin/entregador**, e-mail único, hash da senha, CPF/CNPJ, telefone, veículo) |
 | `sessoes` | Tokens de login ativos |
-| `entregas` | Pedidos: cliente dono, origem/destino, modalidade, tipo de rastreio, valor, status, responsável, avaliação |
+| `entregas` | Pedidos: cliente dono, **entregador designado**, origem/destino (com coordenadas para a rota), modalidade, tipo de rastreio, valor, status, avaliação |
 | `entrega_eventos` | Linha do tempo de cada entrega (cada mudança de status gera um evento) |
-| `ativos` | Equipamentos, ferramentas, veículos e mercadorias: identificação (QR/RFID/GPS), responsável, local, status, horas de uso |
+| `ativos` | **Tipo de ativo genérico** + categoria (Veículo, Equipamento, Ferramenta, Carga), entrega vinculada (cargas), identificação (QR/RFID/GPS), responsável, local, status, horas de uso |
 | `ativo_historico` | Movimentações e responsáveis ao longo do tempo (check-in/out, transferências, extravio) |
 | `alertas` / `alerta_passos` | Alertas operacionais e o checklist do fluxo de resposta |
 | `notificacoes` | Notificações de cada usuário |
-| `equipe` | Colaboradores de campo e adesão ao registro no app |
+| `equipe` | Colaboradores de campo (ligados ao login do entregador) e adesão ao registro no app |
 | `configuracoes` | Preferências do cliente e regras de privacidade (LGPD) da empresa (chave/valor JSON) |
 
 ### Endpoints da API
@@ -113,16 +142,19 @@ Toda ação na interface grava no banco: pedido, mudança de status, check-in/ou
 |---|---|---|
 | `POST /api/auth/login` · `POST /api/auth/cadastro` | Entrar / criar conta (devolve token) | público |
 | `GET /api/auth/me` · `POST /api/auth/logout` | Sessão atual / sair | logado |
+| `PATCH /api/auth/perfil` · `POST /api/auth/senha` | Editar perfil / trocar senha | logado |
 | `GET /api/rastreio?codigo=&documento=` | Rastreio sem login (código + CPF/CNPJ precisam conferir) | público |
-| `GET /api/entregas` · `POST /api/entregas` | Listar (cliente vê só as suas) / criar pedido | logado |
-| `PATCH /api/entregas/:id/status` · `PATCH /api/entregas/:id/responsavel` | Atualizar status (gera evento + notifica o cliente) / atribuir | empresa |
+| `GET /api/entregas` · `POST /api/entregas` | Listar (cada perfil vê só o que é seu) / criar pedido (também cria o ativo da carga) | logado |
+| `PATCH /api/entregas/:id/status` | Atualizar status (evento + ativo + notificação ao cliente) | admin ou entregador designado |
+| `PATCH /api/entregas/:id/responsavel` | Atribuir a um entregador | admin |
+| `GET /api/rotas/otimizada?entregadorId=` | Rota otimizada das entregas pendentes (OSRM ou local) | entregador (a própria) / admin |
 | `POST /api/entregas/:id/avaliacao` | Avaliar entrega recebida | dono da entrega |
-| `GET /api/ativos` · `POST /api/ativos` | Listar / cadastrar ativo | empresa |
-| `POST /api/ativos/:id/movimentacao` · `PATCH /api/ativos/:id/responsavel` · `POST /api/ativos/:id/extraviado` | Check-in/out, transferência, extravio | empresa |
-| `GET /api/alertas` · `POST /api/alertas/:id/assumir` · `POST /api/alertas/:id/resolver` · `PATCH /api/alertas/:id/passos/:ordem` | Central de alertas | empresa |
+| `GET /api/ativos` · `POST /api/ativos` | Listar / cadastrar ativo | admin |
+| `POST /api/ativos/:id/movimentacao` · `PATCH /api/ativos/:id/responsavel` · `POST /api/ativos/:id/extraviado` | Check-in/out, transferência, extravio | admin |
+| `GET /api/alertas` · `POST /api/alertas/:id/assumir` · `POST /api/alertas/:id/resolver` · `PATCH /api/alertas/:id/passos/:ordem` | Central de alertas | admin |
 | `GET /api/notificacoes` · `POST /api/notificacoes/lidas` | Notificações do usuário | logado |
 | `GET/PUT /api/configuracoes/:chave` | Preferências / privacidade | logado |
-| `GET /api/equipe` · `POST /api/demo/reset` | Equipe de campo / restaurar dados de demonstração | empresa |
+| `GET /api/equipe` · `POST /api/demo/reset` | Equipe de campo / restaurar dados de demonstração | admin |
 
 ### Recursos do React utilizados
 
@@ -139,7 +171,7 @@ Toda ação na interface grava no banco: pedido, mudança de status, check-in/ou
 |---|---|
 | ≥ 1024 px (desktop) | Sidebar completa + conteúdo em grid com coluna lateral |
 | 768 – 1023 px (tablet) | Sidebar só com ícones; a coluna lateral desce para baixo do conteúdo |
-| < 768 px (celular) | **Barra inferior** com botão central (+ Novo pedido / Escanear QR), menu lateral deslizante e **tabelas que viram cards** |
+| < 768 px (celular) | **Barra inferior** com botão central (+ Novo pedido / Escanear QR), menu lateral deslizante e **tabelas que viram cards**. Na tela do entregador, as ações de cada parada ocupam a largura toda |
 
 <p>
   <img src="docs/screenshots/mobile-cliente.png" alt="Versão mobile" width="260" />
@@ -159,8 +191,10 @@ rota-plus/
 │   ├── seed.js · seedData.js    # dados de demonstração inseridos na 1ª execução
 │   ├── auth.js                  # hash de senha, sessões e controle de acesso por perfil
 │   ├── mappers.js               # converte linhas do banco para o formato do front-end
+│   ├── cargas.js                # cria/sincroniza o ativo "Carga" de cada entrega
+│   ├── rota.js                  # otimização de rota (API OSRM + vizinho mais próximo/2-opt)
 │   ├── reset.js                 # npm run db:reset
-│   ├── routes/                  # auth, entregas, ativos, alertas, notificações/configurações
+│   ├── routes/                  # auth, entregas, rotas, ativos, alertas, notificações/configurações
 │   └── data/rota.db             # arquivo do banco (gerado, fora do Git)
 └── src/
     ├── main.jsx                 # ponto de entrada
@@ -174,12 +208,14 @@ rota-plus/
     ├── components/
     │   ├── ui/                  # Button, Card, Badge, Field, DataTable, MapView, Modal, Stepper…
     │   ├── layout/              # Sidebar, Topbar, BottomNav, Page, layouts público/logado
-    │   └── entregas/            # componentes de domínio (badges de status, resultado de rastreio)
+    │   └── entregas/            # domínio: badges de status, rastreio, RotaOtimizada, MapaRota (Leaflet)
     └── pages/
         ├── publico/             # Landing, Login, Cadastro, Rastreio sem login
         ├── cliente/             # Início, Novo pedido, Acompanhar, Status, Previsão, Histórico, Notificações, Avaliar
-        └── empresa/             # Painel, Entregas, Ativos, Detalhe do ativo, Mapa, Alertas, Equipes,
-                                 # Relatórios, App de campo, Escanear, Configurações
+        ├── empresa/             # (administrador) Painel, Entregas, Ativos, Detalhe do ativo, Mapa, Alertas,
+        │                        # Equipes, Relatórios, Escanear, Configurações
+        ├── entregador/          # Minhas entregas (rota otimizada + atualização de status)
+        └── comum/               # Meu perfil (todos os perfis)
 ```
 
 ---
@@ -211,26 +247,29 @@ Abra **http://localhost:5173**. A API sobe na porta **3001**. Na primeira execu�
 
 ### Contas de demonstração
 
-As contas abaixo são criadas no banco na primeira execução. Na tela de login, clique em **"Preencher com dados de demonstração"**, ou crie uma conta nova em **Cadastre-se**:
+As contas abaixo são criadas no banco na primeira execução. Na tela de login, use os botões de demonstração, ou crie uma conta nova em **Cadastre-se**:
 
 | Perfil | Como entrar |
 |---|---|
 | Usuário (cliente) | aba **Usuário** → e-mail `jhonata@email.com`, senha `demo123` |
-| Empresa | aba **Empresa** → e-mail `luis@logisuape.com.br`, CNPJ `12.345.678/0001-90`, senha `demo123` |
+| Administrador | aba **Empresa** → **Demo: administrador** (e-mail `luis@logisuape.com.br`, CNPJ `12.345.678/0001-90`, senha `demo123`) |
+| Entregador | aba **Empresa** → **Demo: entregador** (e-mail `thiago@logisuape.com.br`, mesmo CNPJ, senha `demo123`). Também existem `carla@`, `anapaula@`, `rafael@`, `jonas@` e `bruno@logisuape.com.br` |
 | Rastreio sem login | menu **Rastrear** → código `RT-90827-BR` + CPF `123.456.789-00` |
 
-Para voltar aos dados iniciais, rode `npm run db:reset` ou use **Empresa › Configurações › Dispositivos e plano › Restaurar dados**.
+Para voltar aos dados iniciais, rode `npm run db:reset` ou use **Empresa › Configurações › Dispositivos e plano › Restaurar dados**. Um banco criado por uma versão anterior do projeto é recriado sozinho quando a estrutura das tabelas muda.
 
 ### Roteiro sugerido para avaliação
 
 1. **Cliente:** faça um *Novo pedido* (troque Caixas/Documentos, Expressa e GPS e veja o frete mudar), depois veja o pedido em *Status* e *Acompanhar*.
-2. Saia e entre como **Empresa:** o pedido aparece em *Entregas*. Atribua um responsável e mude o status.
-3. Abra o **App de campo**, registre a entrega com foto e assinatura. Teste também desligando a "conexão" para ver a fila offline.
-4. Em **Ativos**, abra o gerador `ATV-00412`, faça check-out/check-in e veja o histórico. Em **Escanear**, digite `ATV-00412`.
-5. Na **Central de alertas**, marque etapas do fluxo de resposta, assuma e resolva um alerta.
-6. Abra o site em **outro navegador** (ou aba anônima) como cliente: o status alterado pela empresa aparece em até 10 s, porque está no banco.
-7. Reinicie o servidor (`Ctrl+C` e `npm run dev`): todos os dados continuam lá.
-8. Reduza a largura da janela para ver as versões tablet e celular.
+2. Saia e entre como **administrador:** o pedido aparece em *Entregas* e também em *Ativos › Carga*. Atribua ao entregador **Thiago Rodrigues**.
+3. Em outro navegador (ou aba anônima), entre como **entregador**. A entrega aparece na rota otimizada. Avance o status (*Confirmar coleta → Iniciar trajeto → Saí para entrega → Registrar entrega* com foto e assinatura). Teste também desligando a "conexão" para ver a fila offline.
+4. Volte ao administrador: em até 10 s a entrega e o ativo da carga mostram o novo status e quem atualizou. Em *Equipes*, clique em **Ver rota** no Thiago.
+5. Em **Ativos**, abra o gerador `ATV-00412`, faça check-out/check-in e veja o histórico. Em **Escanear**, digite `ATV-00412`.
+6. Na **Central de alertas**, marque etapas do fluxo de resposta, assuma e resolva um alerta.
+7. Entre como cliente: o status alterado pelo entregador aparece em até 10 s, com notificação.
+8. Em **Meu perfil** (qualquer conta), altere o telefone ou a senha.
+9. Reinicie o servidor (`Ctrl+C` e `npm run dev`): todos os dados continuam lá.
+10. Reduza a largura da janela para ver as versões tablet e celular.
 
 ## Capturas de tela
 
@@ -242,9 +281,9 @@ Para voltar aos dados iniciais, rode `npm run db:reset` ou use **Empresa › Con
 |---|---|
 | ![](docs/screenshots/empresa-painel.png) | ![](docs/screenshots/ativo-detalhe.png) |
 
-| Central de alertas | App de campo |
+| Central de alertas | Tela do entregador (rota otimizada) |
 |---|---|
-| ![](docs/screenshots/alertas.png) | ![](docs/screenshots/app-campo.png) |
+| ![](docs/screenshots/alertas.png) | ![](docs/screenshots/entregador.png) |
 
 ---
 

@@ -1,7 +1,7 @@
 import { Router } from 'express'
-import { autenticar, exigirPerfil } from '../auth.js'
+import { autenticar, exigirFuncao } from '../auth.js'
 import { db, resetDatabase } from '../db.js'
-import { notificacaoToJson } from '../mappers.js'
+import { equipeToJson, notificacaoToJson } from '../mappers.js'
 
 // Notificações, configurações, equipe e utilidades
 const router = Router()
@@ -36,10 +36,26 @@ router.put('/configuracoes/:chave', (req, res) => {
 })
 
 // ---------- equipe de campo ----------
-router.get('/equipe', exigirPerfil('empresa'), (req, res) => res.json(db.prepare('SELECT * FROM equipe ORDER BY id').all()))
+// Para quem tem login de entregador, "hoje" e o status vêm das entregas atribuídas a ele.
+router.get('/equipe', exigirFuncao('admin'), (req, res) => {
+  const stats = db.prepare(`SELECT COUNT(*) AS total,
+      SUM(status = 'entregue') AS entregues,
+      SUM(status IN ('transito', 'saiu', 'atrasado')) AS em_rota
+    FROM entregas WHERE entregador_id = ? AND status <> 'cancelado'`)
+  const lista = db.prepare('SELECT * FROM equipe ORDER BY id').all().map((p) => {
+    if (!p.usuario_id) return equipeToJson(p)
+    const s = stats.get(p.usuario_id)
+    return equipeToJson({
+      ...p,
+      hoje: s.total ? `${s.entregues} / ${s.total}` : '—',
+      status: s.em_rota ? 'Em rota' : p.status === 'Em rota' ? 'Disponível' : p.status,
+    })
+  })
+  res.json(lista)
+})
 
 // ---------- restaurar dados de demonstração ----------
-router.post('/demo/reset', exigirPerfil('empresa'), (req, res) => {
+router.post('/demo/reset', exigirFuncao('admin'), (req, res) => {
   resetDatabase()
   res.json({ ok: true, mensagem: 'Banco restaurado. Faça login novamente.' })
 })

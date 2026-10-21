@@ -43,13 +43,13 @@ export default function Sidebar({ perfil, open, onNavigate }) {
         <Icon name="logout" />
         <span>Sair</span>
       </button>
-      <div className="user-card">
+      <NavLink to={`/${perfil}/perfil`} className="user-card" onClick={onNavigate} title="Meu perfil">
         <Avatar name={usuario?.nome} size={40} />
         <div>
           <strong>{usuario?.nome}</strong>
-          <span className="small muted">{perfil === 'empresa' ? usuario?.cargo : 'Cliente'}</span>
+          <span className="small muted">{usuario?.cargo}</span>
         </div>
-      </div>
+      </NavLink>
     </aside>
   )
 }

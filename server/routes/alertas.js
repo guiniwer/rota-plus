@@ -1,10 +1,10 @@
 import { Router } from 'express'
-import { autenticar, exigirPerfil } from '../auth.js'
+import { autenticar, exigirFuncao } from '../auth.js'
 import { db, transaction } from '../db.js'
 import { alertaToJson } from '../mappers.js'
 
 const router = Router()
-router.use(autenticar, exigirPerfil('empresa'))
+router.use(autenticar, exigirFuncao('admin'))
 
 function buscarAlerta(id) {
   const a = db.prepare('SELECT * FROM alertas WHERE id = ?').get(id)

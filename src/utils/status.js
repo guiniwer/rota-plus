@@ -20,6 +20,7 @@ export const STATUS_ATIVO = {
   sem_sinal: { label: 'Sem sinal', tone: 'danger' },
   manutencao: { label: 'Manutenção', tone: 'neutral' },
   extraviado: { label: 'Extraviado', tone: 'danger' },
+  entregue: { label: 'Entregue', tone: 'success' }, // cargas
 }
 
 export const SEVERIDADE = {
@@ -42,5 +43,5 @@ export const TIPO_ATIVO_ICON = {
   Veículo: 'truck',
   Equipamento: 'wrench',
   Ferramenta: 'wrench',
-  Mercadoria: 'box',
+  Carga: 'box',
 }

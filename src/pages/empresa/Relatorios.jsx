@@ -14,7 +14,7 @@ const PERIODOS = {
   '30d': { label: '30 dias', serie: [88, 90, 92, 94], prefixo: 'S' },
   tri: { label: 'Trimestre', serie: [82, 84, 85, 87, 86, 89, 90, 91, 92, 93, 94, 94], prefixo: 'S' },
 }
-const CORES_TIPO = { Veículo: 'var(--pink)', Equipamento: 'var(--purple)', Ferramenta: 'var(--amber)', Mercadoria: 'var(--cyan)' }
+const CORES_TIPO = { Veículo: 'var(--pink)', Equipamento: 'var(--purple)', Ferramenta: 'var(--amber)' } // cargas não entram: o uso delas é a própria entrega
 
 export default function Relatorios() {
   const { ativos, alertas, entregas, toast } = useApp()

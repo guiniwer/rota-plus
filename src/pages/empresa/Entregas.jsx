@@ -14,7 +14,7 @@ import Segmented from '../../components/ui/Segmented'
 import Timeline from '../../components/ui/Timeline'
 import { EntregaBadge } from '../../components/entregas/StatusBadge'
 import { useApp } from '../../context/AppContext'
-import { RESPONSAVEIS } from '../../utils/ativos'
+import { OPCOES_CIDADES, nomeCidade } from '../../data/cidades'
 import { brl } from '../../utils/format'
 import { STATUS_ENTREGA } from '../../utils/status'
 
@@ -26,13 +26,16 @@ const ABAS = {
   concluidas: (e) => e.status === 'entregue',
 }
 
+const NOVA = { cliente: '', destino: '', cidade: 'recife-pe', tipoCarga: 'Caixa', janela: '14:00–15:00', entregadorId: '' }
+
 export default function Entregas() {
-  const { entregas, atribuirEntrega, atualizarStatusEntrega, criarPedido, toast } = useApp()
+  const { entregas, entregadores, atribuirEntrega, atualizarStatusEntrega, criarPedido, toast } = useApp()
   const [params, setParams] = useSearchParams()
   const [aba, setAba] = useState('todas')
   const [busca, setBusca] = useState(params.get('q') ?? '')
   const [novaAberta, setNovaAberta] = useState(false)
-  const [nova, setNova] = useState({ cliente: '', destino: '', janela: '14:00–15:00', responsavel: RESPONSAVEIS[0] })
+  const [nova, setNova] = useState(NOVA)
+  const opcoesEntregador = [{ value: '', label: 'Não atribuído' }, ...entregadores.map((p) => ({ value: String(p.usuarioId), label: p.nome }))]
   const selecionadaId = params.get('q')
   const selecionada = entregas.find((e) => e.id === selecionadaId)
 
@@ -52,11 +55,27 @@ export default function Entregas() {
 
   const criar = async (e) => {
     e.preventDefault()
-    const id = await criarPedido({ cliente: nova.cliente, remetente: 'LogiSuape', destinatario: nova.cliente, origem: 'CD Recife', destino: nova.destino, tipoCarga: 'Volumes', pesoTaxado: 10, modalidade: 'normal', rastreio: 'gps', valor: 90, prazoTexto: `Hoje, ${nova.janela}`, janela: nova.janela, responsavel: nova.responsavel, criadoEm: 'Hoje' })
+    const id = await criarPedido({
+      cliente: nova.cliente,
+      remetente: 'LogiSuape',
+      destinatario: nova.cliente,
+      origem: 'CD Recife',
+      destino: `${nova.destino} — ${nomeCidade(nova.cidade)}`,
+      destinoCidade: nova.cidade,
+      tipoCarga: nova.tipoCarga,
+      pesoTaxado: 10,
+      modalidade: 'normal',
+      rastreio: 'gps',
+      valor: 90,
+      prazoTexto: `Hoje, ${nova.janela}`,
+      janela: nova.janela,
+      entregadorId: nova.entregadorId || null,
+    })
     if (!id) return
+    const quem = entregadores.find((p) => String(p.usuarioId) === nova.entregadorId)?.nome
     setNovaAberta(false)
-    setNova({ cliente: '', destino: '', janela: '14:00–15:00', responsavel: RESPONSAVEIS[0] })
-    toast(`Entrega ${id} criada e atribuída a ${nova.responsavel}.`)
+    setNova(NOVA)
+    toast(quem ? `Entrega ${id} criada e atribuída a ${quem}.` : `Entrega ${id} criada. Atribua um entregador.`)
   }
 
   return (
@@ -77,7 +96,7 @@ export default function Entregas() {
       <Segmented options={opcoesAbas} value={aba} onChange={setAba} />
       <div className={selecionada ? 'grid-aside' : ''}>
         <Card>
-          <SearchInput value={busca} onChange={setBusca} placeholder="Buscar por código, cliente, destino ou responsável…" />
+          <SearchInput value={busca} onChange={setBusca} placeholder="Buscar por código, cliente, destino ou entregador…" />
           {filtradas.length ? (
             <DataTable
               rows={filtradas}
@@ -95,7 +114,7 @@ export default function Entregas() {
                     </span>
                   ),
                 },
-                { key: 'resp', label: 'Responsável', render: (e) => <Person name={e.responsavel} /> },
+                { key: 'resp', label: 'Entregador', render: (e) => <Person name={e.responsavel} /> },
                 { key: 'janela', label: 'Janela' },
                 { key: 'rastreio', label: 'Rastreio', render: (e) => (e.rastreio === 'gps' ? 'GPS' : 'CD') },
                 { key: 'status', label: 'Status', render: (e) => <EntregaBadge status={e.status} /> },
@@ -120,7 +139,13 @@ export default function Entregas() {
             <KeyValue label="Destino" value={selecionada.destino} />
             <KeyValue label="Janela" value={selecionada.janela} />
             <KeyValue label="Valor" value={brl(selecionada.valor)} />
-            <Field label="Responsável" as="select" value={selecionada.responsavel ?? ''} onChange={(e) => (atribuirEntrega(selecionada.id, e.target.value), toast('Responsável atualizado.'))} options={[{ value: '', label: 'Não atribuído' }, ...RESPONSAVEIS]} />
+            <Field
+              label="Entregador"
+              as="select"
+              value={selecionada.entregadorId ? String(selecionada.entregadorId) : ''}
+              onChange={async (e) => (await atribuirEntrega(selecionada.id, e.target.value)) && toast('Entregador atualizado — a entrega já aparece na tela dele.')}
+              options={opcoesEntregador}
+            />
             <Field
               label="Atualizar status"
               as="select"
@@ -139,11 +164,13 @@ export default function Entregas() {
       <Modal title="Nova entrega" open={novaAberta} onClose={() => setNovaAberta(false)}>
         <form className="stack-sm" style={{ gap: 16 }} onSubmit={criar}>
           <Field label="Cliente" value={nova.cliente} onChange={(e) => setNova({ ...nova, cliente: e.target.value })} required />
-          <Field label="Endereço de destino" value={nova.destino} onChange={(e) => setNova({ ...nova, destino: e.target.value })} required />
           <div className="grid-form">
+            <Field label="Endereço de destino" value={nova.destino} onChange={(e) => setNova({ ...nova, destino: e.target.value })} placeholder="Rua, número e bairro" required />
+            <Field label="Cidade" as="select" value={nova.cidade} onChange={(e) => setNova({ ...nova, cidade: e.target.value })} options={OPCOES_CIDADES} />
+            <Field label="Tipo de carga" as="select" value={nova.tipoCarga} onChange={(e) => setNova({ ...nova, tipoCarga: e.target.value })} options={['Caixa', 'Documentos', 'Palete', 'Contêiner', 'Volumes']} />
             <Field label="Janela" as="select" value={nova.janela} onChange={(e) => setNova({ ...nova, janela: e.target.value })} options={['08:00–09:00', '10:00–11:00', '14:00–15:00', '16:00–17:00']} />
-            <Field label="Responsável" as="select" value={nova.responsavel} onChange={(e) => setNova({ ...nova, responsavel: e.target.value })} options={RESPONSAVEIS} />
           </div>
+          <Field label="Entregador" as="select" value={nova.entregadorId} onChange={(e) => setNova({ ...nova, entregadorId: e.target.value })} options={opcoesEntregador} />
           <Button type="submit" block>
             Criar entrega
           </Button>

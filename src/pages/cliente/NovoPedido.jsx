@@ -59,6 +59,8 @@ export default function NovoPedido() {
       destinatario: form.destinatario,
       origem: `${form.enderecoOrigem} — ${nomeCidade(form.origem)}`,
       destino: `${form.enderecoDestino} — ${nomeCidade(form.destino)}`,
+      destinoCidade: form.destino, // usado para localizar a parada na rota do entregador
+      valorNF: Number(form.valorNF) || 0,
       tipoCarga: form.tipoCarga === 'caixa' ? `Caixa · ${form.descricao || 'diversos'}` : 'Documentos',
       pesoTaxado: frete.pesoTaxado,
       modalidade: form.modalidade,

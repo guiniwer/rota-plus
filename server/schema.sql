@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS usuarios (
   empresa     TEXT,
   cargo       TEXT,
   cnpj        TEXT,               -- CNPJ da empresa (só dígitos)
+  funcao      TEXT    CHECK (funcao IN ('admin', 'entregador')), -- só para perfil empresa
+  telefone    TEXT,
+  veiculo     TEXT,               -- entregador
   criado_em   TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -38,6 +41,9 @@ CREATE TABLE IF NOT EXISTS entregas (
   previsao              TEXT,
   janela                TEXT,
   responsavel           TEXT,
+  entregador_id         INTEGER REFERENCES usuarios(id) ON DELETE SET NULL, -- entregador designado
+  lat                   REAL,   -- coordenadas do destino (usadas na otimização de rota)
+  lng                   REAL,
   progresso             REAL    NOT NULL DEFAULT 0,
   avaliacao_nota        INTEGER,
   avaliacao_estado      TEXT,
@@ -53,10 +59,12 @@ CREATE TABLE IF NOT EXISTS entrega_eventos (
   data        TEXT
 );
 
+-- nome = tipo de ativo genérico (ex.: "Gerador de energia", "Caixa"); tipo = categoria
 CREATE TABLE IF NOT EXISTS ativos (
   id             TEXT    PRIMARY KEY,
   nome           TEXT    NOT NULL,
-  tipo           TEXT    NOT NULL,
+  tipo           TEXT    NOT NULL CHECK (tipo IN ('Veículo', 'Equipamento', 'Ferramenta', 'Carga')),
+  entrega_id     TEXT    UNIQUE REFERENCES entregas(id) ON DELETE CASCADE, -- toda entrega vira um ativo "Carga"
   identificacao  TEXT    NOT NULL,
   bateria        INTEGER,
   responsavel    TEXT,
@@ -114,6 +122,7 @@ CREATE TABLE IF NOT EXISTS notificacoes (
 
 CREATE TABLE IF NOT EXISTS equipe (
   id       INTEGER PRIMARY KEY AUTOINCREMENT,
+  usuario_id INTEGER UNIQUE REFERENCES usuarios(id) ON DELETE CASCADE, -- login do entregador (se tiver)
   nome     TEXT NOT NULL,
   funcao   TEXT,
   base     TEXT,
@@ -133,6 +142,7 @@ CREATE TABLE IF NOT EXISTS configuracoes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_entregas_usuario ON entregas(usuario_id);
+CREATE INDEX IF NOT EXISTS idx_entregas_entregador ON entregas(entregador_id);
 CREATE INDEX IF NOT EXISTS idx_eventos_entrega ON entrega_eventos(entrega_id);
 CREATE INDEX IF NOT EXISTS idx_historico_ativo ON ativo_historico(ativo_id);
 CREATE INDEX IF NOT EXISTS idx_notificacoes_usuario ON notificacoes(usuario_id);

@@ -12,12 +12,15 @@ import Person from '../../components/ui/Person'
 import ProgressBar from '../../components/ui/ProgressBar'
 import SearchInput from '../../components/ui/SearchInput'
 import Toggle from '../../components/ui/Toggle'
+import RotaOtimizada from '../../components/entregas/RotaOtimizada'
 import { useApp } from '../../context/AppContext'
+import { maskDocumento } from '../../utils/format'
 
 const TOM = { 'Em rota': 'pink', Disponível: 'success', Offline: 'warning', 'Fora do turno': 'neutral' }
 
 export default function Equipes() {
-  const { equipe: EQUIPE, privacidade, setPrivacidade, toast } = useApp()
+  const { equipe: EQUIPE, usuario, privacidade, setPrivacidade, toast } = useApp()
+  const [rotaDe, setRotaDe] = useState(null) // colaborador cuja rota está aberta
   const [busca, setBusca] = useState('')
   const [convite, setConvite] = useState(false)
   const [email, setEmail] = useState('')
@@ -46,6 +49,7 @@ export default function Equipes() {
         <DataTable
           rowKey="id"
           rows={lista}
+          onRowClick={(p) => (p.usuarioId ? setRotaDe(p) : toast(`${p.nome} não tem login de entregador.`))}
           columns={[
             { key: 'nome', label: 'Colaborador', render: (p) => (<span><Person name={p.nome} /><span className="cell-sub">{p.funcao}</span></span>) },
             { key: 'base', label: 'Equipe / base' },
@@ -54,6 +58,18 @@ export default function Equipes() {
             { key: 'prazo', label: 'No prazo' },
             { key: 'adesao', label: 'Adesão ao app', render: (p) => (<span style={{ display: 'block', minWidth: 110 }}><ProgressBar value={p.adesao} color={cor(p.adesao)} height={6} /><span className="cell-sub">{p.adesao}% registros completos</span></span>) },
             { key: 'status', label: 'Status', render: (p) => <Badge tone={TOM[p.status]}>{p.status}</Badge> },
+            {
+              key: 'rota',
+              label: 'Rota',
+              render: (p) =>
+                p.usuarioId ? (
+                  <Button size="sm" variant="secondary" icon="route" onClick={(e) => (e.stopPropagation(), setRotaDe(p))}>
+                    Ver rota
+                  </Button>
+                ) : (
+                  <span className="grey small">Sem login</span>
+                ),
+            },
           ]}
         />
       </Card>
@@ -75,6 +91,10 @@ export default function Equipes() {
         </Card>
       </div>
 
+      <Modal title={rotaDe ? `Rota de ${rotaDe.nome}` : ''} wide open={Boolean(rotaDe)} onClose={() => setRotaDe(null)}>
+        {rotaDe && <RotaOtimizada entregadorId={rotaDe.usuarioId} />}
+      </Modal>
+
       <Modal title="Convidar colaborador" open={convite} onClose={() => setConvite(false)}>
         <form
           className="stack-sm"
@@ -87,7 +107,10 @@ export default function Equipes() {
           }}
         >
           <Field label="E-mail ou celular" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <p className="small muted">O colaborador recebe o link do app e o termo de ciência sobre o rastreamento.</p>
+          <p className="small muted">
+            O colaborador recebe o link de cadastro: ele escolhe <strong>Empresa › Entregador</strong> e informa o CNPJ {usuario?.cnpj ? maskDocumento(usuario.cnpj) : 'da empresa'}. Assim que se
+            cadastrar, aparece nesta lista e pode receber entregas.
+          </p>
           <Button type="submit" block>
             Enviar convite
           </Button>

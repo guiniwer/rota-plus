@@ -44,6 +44,8 @@ export const AuthApi = {
   login: (dados) => api('/auth/login', { method: 'POST', body: dados }),
   cadastro: (dados) => api('/auth/cadastro', { method: 'POST', body: dados }),
   me: () => api('/auth/me'),
+  atualizarPerfil: (dados) => api('/auth/perfil', { method: 'PATCH', body: dados }),
+  alterarSenha: (atual, nova) => api('/auth/senha', { method: 'POST', body: { atual, nova } }),
   logout: () => api('/auth/logout', { method: 'POST' }),
 }
 
@@ -51,7 +53,7 @@ export const EntregasApi = {
   listar: () => api('/entregas'),
   criar: (dados) => api('/entregas', { method: 'POST', body: dados }),
   status: (id, status, descricao) => api(`/entregas/${id}/status`, { method: 'PATCH', body: { status, descricao } }),
-  responsavel: (id, responsavel) => api(`/entregas/${id}/responsavel`, { method: 'PATCH', body: { responsavel } }),
+  atribuir: (id, entregadorId) => api(`/entregas/${id}/responsavel`, { method: 'PATCH', body: { entregadorId } }),
   avaliar: (id, avaliacao) => api(`/entregas/${id}/avaliacao`, { method: 'POST', body: avaliacao }),
   rastrear: (codigo, documento) => api(`/rastreio?${qs({ codigo, documento })}`),
 }
@@ -69,6 +71,11 @@ export const AlertasApi = {
   assumir: (id) => api(`/alertas/${id}/assumir`, { method: 'POST' }),
   resolver: (id) => api(`/alertas/${id}/resolver`, { method: 'POST' }),
   alternarPasso: (id, ordem) => api(`/alertas/${id}/passos/${ordem}`, { method: 'PATCH' }),
+}
+
+export const RotasApi = {
+  /** Ordem otimizada das paradas pendentes (entregador: a própria; admin: informe o entregador). */
+  otimizada: (entregadorId) => api(`/rotas/otimizada${entregadorId ? `?${qs({ entregadorId })}` : ''}`),
 }
 
 export const GeralApi = {

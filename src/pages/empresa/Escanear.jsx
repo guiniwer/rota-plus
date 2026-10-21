@@ -115,7 +115,8 @@ export default function Escanear() {
               </div>
               <KeyValue label="Cliente" value={atual.cliente} />
               <KeyValue label="Destino" value={atual.destino} />
-              <Button onClick={() => navigate(`/empresa/campo?registrar=${atual.id}`)}>Registrar entrega</Button>
+              <KeyValue label="Entregador" value={atual.responsavel ?? 'Não atribuído'} />
+              <Button onClick={() => navigate(`/empresa/entregas?q=${atual.id}`)}>Abrir entrega</Button>
             </>
           )}
         </Card>

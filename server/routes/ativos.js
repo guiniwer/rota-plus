@@ -1,11 +1,11 @@
 import { Router } from 'express'
-import { autenticar, exigirPerfil } from '../auth.js'
+import { autenticar, exigirFuncao } from '../auth.js'
 import { db, transaction } from '../db.js'
 import { ativoToJson } from '../mappers.js'
 import { nowLabel } from '../../src/utils/format.js'
 
 const router = Router()
-router.use(autenticar, exigirPerfil('empresa'))
+router.use(autenticar, exigirFuncao('admin'))
 
 function buscarAtivo(id) {
   const a = db.prepare('SELECT * FROM ativos WHERE id = ?').get(id)
@@ -26,11 +26,15 @@ function carregar(req, res, next) {
 // GET /api/ativos
 router.get('/', (req, res) => res.json(db.prepare('SELECT id FROM ativos ORDER BY ordem DESC').all().map((r) => buscarAtivo(r.id))))
 
-// POST /api/ativos  { nome, tipo, identificacao, local, valor }
+// POST /api/ativos  { nome (tipo de ativo genérico), tipo (categoria), identificacao, local, valor }
+// Cargas não são cadastradas aqui: entram automaticamente ao criar uma entrega.
+const PREFIXO = { Veículo: 'VEI', Equipamento: 'EQP', Ferramenta: 'FER' }
 router.post('/', (req, res) => {
   const { nome = '', tipo, identificacao, local = 'Almoxarifado CD', valor = 0 } = req.body
-  if (!nome.trim()) return res.status(400).json({ erro: 'Informe o nome do ativo.' })
-  const prefixo = { Veículo: 'VEI', Equipamento: 'EQP', Ferramenta: 'FER', Mercadoria: 'MER' }[tipo] ?? 'ATV'
+  if (!nome.trim()) return res.status(400).json({ erro: 'Informe o tipo de ativo.' })
+  if (!PREFIXO[tipo]) return res.status(400).json({ erro: 'Categoria inválida. Cargas entram automaticamente pelas entregas.' })
+  if (!['QR', 'RFID', 'GPS'].includes(identificacao)) return res.status(400).json({ erro: 'Identificação inválida.' })
+  const prefixo = PREFIXO[tipo]
   let id
   do id = `${prefixo}-${Math.floor(1000 + Math.random() * 8999)}`
   while (db.prepare('SELECT 1 FROM ativos WHERE id = ?').get(id))

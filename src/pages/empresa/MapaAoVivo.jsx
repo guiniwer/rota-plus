@@ -14,16 +14,18 @@ import useSimulatedProgress from '../../hooks/useSimulatedProgress'
 import { COR_STATUS_ATIVO, toMarkers } from '../../utils/ativos'
 import { TIPO_ATIVO_ICON } from '../../utils/status'
 
-const CAMADAS = ['Veículo', 'Equipamento', 'Ferramenta', 'Mercadoria']
+const CAMADAS = ['Veículo', 'Equipamento', 'Ferramenta', 'Carga']
 
 export default function MapaAoVivo() {
   const { ativos } = useApp()
   const navigate = useNavigate()
-  const [camadas, setCamadas] = useState({ Veículo: true, Equipamento: true, Ferramenta: false, Mercadoria: true, rota: true })
+  const [camadas, setCamadas] = useState({ Veículo: true, Equipamento: true, Ferramenta: false, Carga: true, rota: true })
   const [selecionadoId, setSelecionadoId] = useState('VEI-0002')
   const progresso = useSimulatedProgress(0.3, { step: 0.005, max: 0.95 })
 
-  const visiveis = ativos.filter((a) => camadas[a.tipo])
+  // cargas só aparecem enquanto estão em rota
+  const noMapa = ativos.filter((a) => a.tipo !== 'Carga' || a.status === 'em_uso')
+  const visiveis = noMapa.filter((a) => camadas[a.tipo])
   const selecionado = ativos.find((a) => a.id === selecionadoId)
   const alternar = (k) => (v) => setCamadas((c) => ({ ...c, [k]: v }))
 
@@ -43,7 +45,7 @@ export default function MapaAoVivo() {
         <div className="stack">
           <Card title="Camadas" compact>
             {CAMADAS.map((c) => (
-              <Toggle key={c} title={`${c}s (${ativos.filter((a) => a.tipo === c).length})`} checked={camadas[c]} onChange={alternar(c)} />
+              <Toggle key={c} title={`${c === 'Carga' ? 'Cargas em rota' : `${c}s`} (${noMapa.filter((a) => a.tipo === c).length})`} checked={camadas[c]} onChange={alternar(c)} />
             ))}
             <Toggle title="Rota da entrega RT-90911" checked={camadas.rota} onChange={alternar('rota')} />
           </Card>

@@ -8,6 +8,7 @@ import ativosRoutes from './routes/ativos.js'
 import authRoutes from './routes/auth.js'
 import entregasRoutes, { rastreioPublico } from './routes/entregas.js'
 import geralRoutes from './routes/geral.js'
+import rotasRoutes from './routes/rotas.js'
 
 const app = express()
 const PORT = Number(process.env.PORT ?? 3001)
@@ -21,6 +22,7 @@ app.get('/api/rastreio', rastreioPublico)
 app.use('/api/entregas', entregasRoutes)
 app.use('/api/ativos', ativosRoutes)
 app.use('/api/alertas', alertasRoutes)
+app.use('/api/rotas', rotasRoutes)
 app.use('/api', geralRoutes)
 app.use('/api', (req, res) => res.status(404).json({ erro: 'Rota não encontrada.' }))
 

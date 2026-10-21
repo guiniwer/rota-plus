@@ -9,6 +9,7 @@ export const NAV = {
     { to: '/cliente/historico', icon: 'list', label: 'Histórico', mobile: true },
     { to: '/cliente/notificacoes', icon: 'bell', label: 'Notificações', mobile: true, badge: 'notificacoes' },
     { to: '/cliente/avaliar', icon: 'star', label: 'Avaliar entrega' },
+    { to: '/cliente/perfil', icon: 'user', label: 'Meu perfil' },
   ],
   empresa: [
     { to: '/empresa', icon: 'grid', label: 'Painel da operação', end: true, mobile: true },
@@ -18,8 +19,13 @@ export const NAV = {
     { to: '/empresa/alertas', icon: 'alert', label: 'Central de alertas', mobile: true, badge: 'alertas' },
     { to: '/empresa/equipes', icon: 'users', label: 'Equipes de campo' },
     { to: '/empresa/relatorios', icon: 'chart', label: 'Relatórios' },
-    { to: '/empresa/campo', icon: 'route', label: 'App de campo' },
     { to: '/empresa/escanear', icon: 'qr', label: 'Escanear QR Code', fab: true },
     { to: '/empresa/configuracoes', icon: 'settings', label: 'Configurações' },
+    { to: '/empresa/perfil', icon: 'user', label: 'Meu perfil' },
+  ],
+  // o entregador só acessa a própria tela de entregas (e o perfil)
+  entregador: [
+    { to: '/entregador', icon: 'route', label: 'Minhas entregas', curto: 'Entregas', end: true, mobile: true },
+    { to: '/entregador/perfil', icon: 'user', label: 'Meu perfil', curto: 'Perfil', mobile: true },
   ],
 }

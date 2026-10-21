@@ -2,8 +2,8 @@ import { useEffect } from 'react'
 import Card from './Card'
 import Icon from './Icon'
 
-/** Janela modal; fecha com Esc ou clicando fora. */
-export default function Modal({ title, open, onClose, children }) {
+/** Janela modal; fecha com Esc ou clicando fora. wide: versão mais larga (ex.: mapa). */
+export default function Modal({ title, open, onClose, wide, children }) {
   useEffect(() => {
     if (!open) return undefined
     const onKey = (e) => e.key === 'Escape' && onClose()
@@ -15,7 +15,7 @@ export default function Modal({ title, open, onClose, children }) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <Card
-        className="modal"
+        className={`modal ${wide ? 'modal-wide' : ''}`}
         title={title}
         role="dialog"
         aria-modal="true"

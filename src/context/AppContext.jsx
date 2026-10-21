@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import { AlertasApi, AtivosApi, AuthApi, EntregasApi, GeralApi, tokenStorage } from '../services/api'
+import { AlertasApi, AtivosApi, AuthApi, EntregasApi, GeralApi, RotasApi, tokenStorage } from '../services/api'
+import { papelDe } from '../utils/papel'
 
 const AppContext = createContext(null)
 const ATUALIZAR_A_CADA = 10_000 // ms — busca novidades no banco (ex.: status alterado pela empresa)
@@ -44,7 +45,10 @@ export function AppProvider({ children }) {
 
   // ---------- carregamento dos dados do usuário logado ----------
   const carregarDados = useCallback(async (u) => {
-    if (u.perfil === 'empresa') {
+    const papel = papelDe(u)
+    if (papel === 'entregador') {
+      setEntregas(await EntregasApi.listar())
+    } else if (papel === 'empresa') {
       const [e, a, al, eq, priv] = await Promise.all([EntregasApi.listar(), AtivosApi.listar(), AlertasApi.listar(), GeralApi.equipe(), GeralApi.config('privacidade')])
       setEntregas(e)
       setAtivos(a)
@@ -75,10 +79,11 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (!usuario) return undefined
     const id = setInterval(() => {
-      const tarefas =
-        usuario.perfil === 'empresa'
-          ? [EntregasApi.listar().then(setEntregas), AlertasApi.listar().then(setAlertas)]
-          : [EntregasApi.listar().then(setEntregas), GeralApi.notificacoes().then(setNotificacoes)]
+      const papel = papelDe(usuario)
+      const tarefas = [EntregasApi.listar().then(setEntregas)]
+      // a visão operacional também recebe as atualizações feitas pelos entregadores
+      if (papel === 'empresa') tarefas.push(AlertasApi.listar().then(setAlertas), AtivosApi.listar().then(setAtivos), GeralApi.equipe().then(setEquipe))
+      if (papel === 'cliente') tarefas.push(GeralApi.notificacoes().then(setNotificacoes))
       Promise.all(tarefas).catch(() => {})
     }, ATUALIZAR_A_CADA)
     return () => clearInterval(id)
@@ -94,10 +99,20 @@ export function AppProvider({ children }) {
   /** Lança erro (com mensagem) se as credenciais forem inválidas. */
   const login = async (perfil, credenciais) => entrar(await AuthApi.login({ perfil, ...credenciais }))
   const cadastrar = async (dados) => entrar(await AuthApi.cadastro(dados))
+  /** Atualiza nome, e-mail, telefone etc. Lança erro com mensagem se a API recusar. */
+  const atualizarPerfil = async (dados) => {
+    const { usuario: u } = await AuthApi.atualizarPerfil(dados)
+    setUsuario(u)
+    if (papelDe(u) !== 'cliente') EntregasApi.listar().then(setEntregas).catch(() => {})
+    return u
+  }
+  const alterarSenha = (atual, nova) => AuthApi.alterarSenha(atual, nova)
   const logout = async () => {
     await AuthApi.logout().catch(() => {})
     tokenStorage.clear()
     setUsuario(null)
+    // não deixa dados de uma conta aparecerem para a próxima
+    ;[setEntregas, setAtivos, setAlertas, setEquipe, setNotificacoes].forEach((set) => set([]))
   }
 
   // ---------- notificações ----------
@@ -111,23 +126,37 @@ export function AppProvider({ children }) {
   }
 
   // ---------- entregas ----------
+  // cada entrega tem um ativo "Carga": quando a entrega muda, a lista de ativos do admin é recarregada
+  const recarregarAtivos = () => {
+    if (papelDe(usuario) === 'empresa') AtivosApi.listar().then(setAtivos).catch(() => {})
+  }
   /** Cria o pedido e devolve o código gerado pelo banco (ou null se falhar). */
   const criarPedido = async (dados) => {
     const nova = await executar(() => EntregasApi.criar(dados))
     if (!nova) return null
     setEntregas((list) => [nova, ...list])
+    recarregarAtivos()
     if (usuario?.perfil === 'cliente') GeralApi.notificacoes().then(setNotificacoes).catch(() => {})
     return nova.id
   }
   const atualizarStatusEntrega = async (id, status, descricao) => {
     const e = await executar(() => EntregasApi.status(id, status, descricao))
-    if (e) setEntregas((list) => substituir(list, e))
+    if (e) {
+      setEntregas((list) => substituir(list, e))
+      recarregarAtivos()
+    }
     return e
   }
-  const atribuirEntrega = async (id, responsavel) => {
-    const e = await executar(() => EntregasApi.responsavel(id, responsavel))
-    if (e) setEntregas((list) => substituir(list, e))
+  const atribuirEntrega = async (id, entregadorId) => {
+    const e = await executar(() => EntregasApi.atribuir(id, entregadorId || null))
+    if (e) {
+      setEntregas((list) => substituir(list, e))
+      recarregarAtivos()
+    }
+    return e
   }
+  /** Rota otimizada (null se falhar). O admin informa o entregador. */
+  const otimizarRota = (entregadorId) => executar(() => RotasApi.otimizada(entregadorId))
   const avaliarEntrega = async (id, avaliacao) => {
     const e = await executar(() => EntregasApi.avaliar(id, avaliacao))
     if (e) {
@@ -183,10 +212,14 @@ export function AppProvider({ children }) {
 
   const value = {
     usuario,
+    papel: papelDe(usuario),
     carregando,
     login,
     cadastrar,
     logout,
+    atualizarPerfil,
+    alterarSenha,
+    otimizarRota,
     entregas,
     criarPedido,
     atualizarStatusEntrega,
@@ -203,6 +236,7 @@ export function AppProvider({ children }) {
     resolverAlerta,
     alternarPasso,
     equipe,
+    entregadores: equipe.filter((p) => p.usuarioId), // colaboradores com login de entregador
     notificacoes,
     marcarLida,
     marcarTodasLidas,

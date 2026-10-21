@@ -3,20 +3,28 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Field from '../../components/ui/Field'
+import OptionCard from '../../components/ui/OptionCard'
 import Segmented from '../../components/ui/Segmented'
 import { useApp } from '../../context/AppContext'
 import { maskDocumento } from '../../utils/format'
+import { INICIO, papelDe } from '../../utils/papel'
 
 const SEGMENTOS = ['Logística', 'Construção', 'Varejo', 'Saúde', 'Eventos', 'Assistência técnica', 'Manutenção', 'Locação de equipamentos', 'Distribuição', 'Tecnologia', 'Outro']
+const VEICULOS = ['Moto', 'Carro', 'Van', 'Caminhão', 'Bicicleta']
 
-/** Cadastro de usuário (cliente) ou de empresa. */
+/** Cadastro de usuário (cliente) ou de empresa — nesta, como administrador ou entregador. */
 export default function Cadastro() {
   const { cadastrar, toast } = useApp()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const [perfil, setPerfil] = useState(params.get('perfil') === 'empresa' ? 'empresa' : 'cliente')
-  const [form, setForm] = useState({ nome: '', email: '', documento: '', fantasia: '', segmento: SEGMENTOS[0], telefone: '', senha: '', confirma: '', aceite: false })
+  const [funcao, setFuncao] = useState('admin') // só para empresa: 'admin' | 'entregador'
+  const [form, setForm] = useState({ nome: '', responsavel: '', email: '', documento: '', fantasia: '', segmento: SEGMENTOS[0], telefone: '', veiculo: VEICULOS[0], senha: '', confirma: '', aceite: false })
   const [erros, setErros] = useState({})
+
+  const empresa = perfil === 'empresa'
+  const admin = empresa && funcao === 'admin'
+  const entregador = empresa && funcao === 'entregador'
 
   const set = (campo) => (e) => {
     const v = e.target.type === 'checkbox' ? e.target.checked : e.target.value
@@ -26,10 +34,11 @@ export default function Cadastro() {
   const registrar = async (e) => {
     e.preventDefault()
     const n = {}
-    if (form.nome.trim().length < 3) n.nome = 'Informe o nome completo.'
+    if (form.nome.trim().length < 3) n.nome = admin ? 'Informe o nome da empresa.' : 'Informe o nome completo.'
+    if (admin && form.responsavel.trim().length < 3) n.responsavel = 'Informe o nome do administrador.'
     if (!form.email.includes('@')) n.email = 'E-mail inválido.'
     const digitos = form.documento.replace(/\D/g, '').length
-    if (perfil === 'empresa' ? digitos !== 14 : ![11, 14].includes(digitos)) n.documento = perfil === 'empresa' ? 'CNPJ deve ter 14 dígitos.' : 'CPF (11) ou CNPJ (14 dígitos).'
+    if (empresa ? digitos !== 14 : ![11, 14].includes(digitos)) n.documento = empresa ? 'CNPJ deve ter 14 dígitos.' : 'CPF (11) ou CNPJ (14 dígitos).'
     if (form.senha.length < 6) n.senha = 'Mínimo de 6 caracteres.'
     if (form.senha !== form.confirma) n.confirma = 'As senhas não conferem.'
     if (!form.aceite) n.aceite = 'É preciso aceitar os termos.'
@@ -37,11 +46,14 @@ export default function Cadastro() {
     if (Object.keys(n).length) return
 
     try {
-      await cadastrar({ perfil, nome: form.nome, email: form.email, senha: form.senha, documento: form.documento, fantasia: form.fantasia, segmento: form.segmento })
-      navigate(perfil === 'empresa' ? '/empresa' : '/cliente')
+      const u = await cadastrar({ perfil, funcao: empresa ? funcao : undefined, ...form })
+      navigate(INICIO[papelDe(u)])
       toast('Conta criada com sucesso! Bem-vindo(a) à Rota+.')
     } catch (err) {
-      setErros({ email: err.status === 409 ? err.message : undefined, geral: err.message })
+      // erro de e-mail ou CNPJ aparece no próprio campo; os demais, embaixo do formulário
+      if (err.status === 409) setErros({ email: err.message })
+      else if (err.status === 404) setErros({ documento: err.message })
+      else setErros({ geral: err.message })
     }
   }
 
@@ -55,7 +67,7 @@ export default function Cadastro() {
           </div>
           <Segmented
             value={perfil}
-            onChange={setPerfil}
+            onChange={(p) => (setPerfil(p), setErros({}))}
             options={[
               { value: 'cliente', label: 'Usuário' },
               { value: 'empresa', label: 'Empresa' },
@@ -63,16 +75,40 @@ export default function Cadastro() {
           />
         </div>
         <form className="stack-sm" style={{ gap: 16 }} onSubmit={registrar} noValidate>
+          {empresa && (
+            <div className="field">
+              <span className="field-label">Você é</span>
+              <div className="grid-2" style={{ gap: 12 }}>
+                <OptionCard
+                  icon="grid"
+                  title="Administrador"
+                  description="Acesso à visão operacional: entregas, ativos, equipes e alertas"
+                  selected={admin}
+                  onSelect={() => (setFuncao('admin'), setErros({}))}
+                />
+                <OptionCard
+                  icon="truck"
+                  title="Entregador"
+                  description="Acesso à tela do entregador: rota do dia e atualização das entregas"
+                  selected={entregador}
+                  onSelect={() => (setFuncao('entregador'), setErros({}))}
+                />
+              </div>
+            </div>
+          )}
           <div className="grid-form">
-            <Field label={perfil === 'empresa' ? 'Nome da empresa' : 'Nome completo'} value={form.nome} onChange={set('nome')} error={erros.nome} />
-            <Field label={perfil === 'empresa' ? 'CNPJ' : 'CPF / CNPJ'} value={form.documento} onChange={set('documento')} error={erros.documento} inputMode="numeric" />
-            {perfil === 'empresa' && <Field label="Nome fantasia" value={form.fantasia} onChange={set('fantasia')} />}
-            <Field label={perfil === 'empresa' ? 'E-mail corporativo' : 'E-mail'} type="email" value={form.email} onChange={set('email')} error={erros.email} />
-            {perfil === 'empresa' && <Field label="Segmento" as="select" value={form.segmento} onChange={set('segmento')} options={SEGMENTOS} />}
-            {perfil === 'empresa' && <Field label="Telefone" type="tel" value={form.telefone} onChange={set('telefone')} />}
+            <Field label={admin ? 'Nome da empresa' : 'Nome completo'} value={form.nome} onChange={set('nome')} error={erros.nome} />
+            <Field label={entregador ? 'CNPJ da empresa em que trabalha' : empresa ? 'CNPJ' : 'CPF / CNPJ'} value={form.documento} onChange={set('documento')} error={erros.documento} inputMode="numeric" />
+            {admin && <Field label="Nome do administrador" value={form.responsavel} onChange={set('responsavel')} error={erros.responsavel} />}
+            {admin && <Field label="Nome fantasia" value={form.fantasia} onChange={set('fantasia')} />}
+            <Field label={empresa ? 'E-mail corporativo' : 'E-mail'} type="email" value={form.email} onChange={set('email')} error={erros.email} />
+            <Field label="Telefone" type="tel" value={form.telefone} onChange={set('telefone')} />
+            {admin && <Field label="Segmento" as="select" value={form.segmento} onChange={set('segmento')} options={SEGMENTOS} />}
+            {entregador && <Field label="Veículo" as="select" value={form.veiculo} onChange={set('veiculo')} options={VEICULOS} />}
             <Field label="Senha" type="password" value={form.senha} onChange={set('senha')} error={erros.senha} />
             <Field label="Confirme sua senha" type="password" value={form.confirma} onChange={set('confirma')} error={erros.confirma} />
           </div>
+          {entregador && <p className="small muted">A empresa precisa já ter um administrador cadastrado. Você verá apenas as entregas atribuídas a você.</p>}
           <label className="row">
             <input type="checkbox" checked={form.aceite} onChange={set('aceite')} />
             <span className="small">Aceito os Termos de Uso e a Política de Privacidade (LGPD)</span>

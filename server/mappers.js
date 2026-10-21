@@ -8,8 +8,12 @@ export function userToJson(u) {
     email: u.email,
     documento: u.documento,
     empresa: u.empresa,
-    cargo: u.perfil === 'empresa' ? u.cargo : 'Cliente',
+    funcao: u.perfil === 'empresa' ? u.funcao : null, // 'admin' | 'entregador'
+    cargo: u.perfil === 'cliente' ? 'Cliente' : u.funcao === 'entregador' ? `Entregador · ${u.empresa}` : u.cargo,
     cnpj: u.cnpj,
+    telefone: u.telefone,
+    veiculo: u.veiculo,
+    criadoEm: u.criado_em,
   }
 }
 
@@ -32,6 +36,9 @@ export function entregaToJson(e, eventos = []) {
     previsao: e.previsao,
     janela: e.janela,
     responsavel: e.responsavel,
+    entregadorId: e.entregador_id,
+    lat: e.lat,
+    lng: e.lng,
     progresso: e.progresso,
     avaliacao: e.avaliacao_nota ? { nota: e.avaliacao_nota, estado: e.avaliacao_estado, comentario: e.avaliacao_comentario } : null,
     // mais recente primeiro
@@ -42,8 +49,9 @@ export function entregaToJson(e, eventos = []) {
 export function ativoToJson(a, historico = []) {
   return {
     id: a.id,
-    nome: a.nome,
-    tipo: a.tipo,
+    nome: a.nome, // tipo de ativo genérico
+    tipo: a.tipo, // categoria
+    entregaId: a.entrega_id,
     identificacao: a.identificacao,
     bateria: a.bateria,
     responsavel: a.responsavel,
@@ -76,4 +84,8 @@ export function alertaToJson(a, passos = []) {
 
 export function notificacaoToJson(n) {
   return { id: n.id, icon: n.icon, cor: n.cor, titulo: n.titulo, texto: n.texto, quando: n.quando, grupo: n.grupo, lida: Boolean(n.lida) }
+}
+
+export function equipeToJson(p) {
+  return { id: p.id, usuarioId: p.usuario_id, nome: p.nome, funcao: p.funcao, base: p.base, veiculo: p.veiculo, hoje: p.hoje, prazo: p.prazo, adesao: p.adesao, status: p.status }
 }
