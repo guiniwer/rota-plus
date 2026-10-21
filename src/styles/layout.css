@@ -1,0 +1,274 @@
+/* ==========================================================
+   Estrutura da aplicação: sidebar, topbar e barra inferior
+   ========================================================== */
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.app-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-body {
+  padding: 8px 40px 40px;
+}
+
+/* ---------- sidebar ---------- */
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 28px 20px 24px;
+  background: var(--side);
+  border-right: 1px solid var(--card);
+  overflow-y: auto;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 6px 28px;
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--pink);
+}
+.brand-mark {
+  width: 40px;
+  height: 40px;
+}
+
+.sidebar-section {
+  padding: 0 14px 8px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 15px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 0.15s, color 0.15s;
+}
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--white);
+}
+.nav-item.active {
+  background: var(--card-2);
+  color: var(--pink);
+  font-weight: 700;
+}
+.nav-badge {
+  margin-left: auto;
+  background: var(--pink);
+  color: var(--white);
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 20px;
+  padding: 1px 8px;
+}
+
+.sidebar-spacer {
+  flex: 1;
+}
+
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--card);
+}
+.user-card strong {
+  display: block;
+  font-size: 14px;
+}
+
+/* ---------- topbar ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 28px 40px 20px;
+}
+.topbar h1 {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+}
+.topbar-search {
+  width: 340px;
+}
+.icon-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  cursor: pointer;
+  color: var(--white);
+}
+.icon-button .dot {
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--pink);
+}
+.menu-toggle {
+  display: none;
+}
+
+/* ---------- barra inferior (mobile) ---------- */
+.bottom-nav {
+  display: none;
+}
+
+/* ---------- responsividade ---------- */
+@media (max-width: 1023px) {
+  /* tablet: sidebar só com ícones */
+  :root {
+    --sidebar-w: 76px;
+  }
+  .sidebar {
+    padding: 24px 12px;
+    align-items: center;
+  }
+  .brand span,
+  .sidebar-section,
+  .nav-item span,
+  .nav-badge,
+  .user-card div {
+    display: none;
+  }
+  .brand {
+    padding: 0 0 20px;
+  }
+  .nav-item {
+    justify-content: center;
+    padding: 12px;
+  }
+  .user-card {
+    padding: 6px;
+    background: none;
+  }
+  .topbar,
+  .app-body {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+  .topbar-search {
+    width: 240px;
+  }
+}
+
+@media (max-width: 767px) {
+  /* mobile: sidebar vira barra inferior + menu sobreposto */
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 50;
+    width: 280px;
+    align-items: stretch;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+  .sidebar.open {
+    transform: translateX(0);
+    box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.55);
+  }
+  .sidebar.open .brand span,
+  .sidebar.open .sidebar-section,
+  .sidebar.open .nav-item span,
+  .sidebar.open .nav-badge,
+  .sidebar.open .user-card div {
+    display: initial;
+  }
+  .sidebar.open .nav-item {
+    justify-content: flex-start;
+  }
+  .menu-toggle {
+    display: grid;
+  }
+  .topbar {
+    padding: 20px 16px 12px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .topbar h1 {
+    font-size: 22px;
+  }
+  .topbar-search {
+    display: none;
+  }
+  .app-body {
+    padding: 4px 16px 110px;
+  }
+  .bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 8px 8px 14px;
+    background: var(--card);
+    border-top: 1px solid var(--line);
+  }
+  .bottom-nav a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    min-width: 56px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .bottom-nav a.active {
+    color: var(--pink);
+  }
+  .bottom-nav .fab {
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    margin-top: -26px;
+    border-radius: 50%;
+    background: var(--pink);
+    color: var(--white);
+    box-shadow: 0 6px 18px rgba(232, 86, 166, 0.45);
+  }
+}

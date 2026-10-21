@@ -1,0 +1,210 @@
+/* ==========================================================
+   Rota+ — tokens de design (mesma paleta do Figma)
+   ========================================================== */
+:root {
+  --bg: #1a0d31;
+  --side: #140a26;
+  --card: #2a1c43;
+  --card-2: #312152;
+  --line: #3a2a5c;
+  --pink: #e856a6;
+  --purple: #8e64d8;
+  --violet: #6e26e9;
+  --muted: #c7b8bf;
+  --grey: #979797;
+  --white: #ffffff;
+  --green: #4caf50;
+  --amber: #f5a524;
+  --red: #ff5c6c;
+  --cyan: #06b6d4;
+
+  --radius: 16px;
+  --radius-sm: 10px;
+  --sidebar-w: 264px;
+  --aside-w: 380px;
+  --gap: 24px;
+  --font: 'Open Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--white);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--pink);
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+:focus-visible {
+  outline: 2px solid var(--pink);
+  outline-offset: 2px;
+}
+
+/* ---------- utilitários de layout ---------- */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+.stack-sm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.row-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.wrap {
+  flex-wrap: wrap;
+}
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+/* conteúdo principal + coluna lateral (padrão das telas desktop) */
+.grid-aside {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--aside-w);
+  gap: var(--gap);
+  align-items: start;
+}
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gap);
+}
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--gap);
+}
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--gap);
+}
+.grid-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.grid-form-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+/* ---------- tipografia ---------- */
+.muted {
+  color: var(--muted);
+}
+.grey {
+  color: var(--grey);
+}
+.pink {
+  color: var(--pink);
+}
+.green {
+  color: var(--green);
+}
+.amber {
+  color: var(--amber);
+}
+.red {
+  color: var(--red);
+}
+.small {
+  font-size: 12px;
+}
+.label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--grey);
+}
+.h-section {
+  font-size: 17px;
+  font-weight: 700;
+}
+.big-number {
+  font-size: 30px;
+  font-weight: 800;
+}
+
+/* ---------- responsividade ---------- */
+@media (max-width: 1200px) {
+  .grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .grid-aside {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+}
+
+@media (max-width: 1023px) {
+  :root {
+    --gap: 16px;
+  }
+  .grid-aside,
+  .grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .grid-2,
+  .grid-form {
+    grid-template-columns: 1fr;
+  }
+  .grid-form-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .big-number {
+    font-size: 24px;
+  }
+}

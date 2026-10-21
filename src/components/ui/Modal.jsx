@@ -1,0 +1,33 @@
+import { useEffect } from 'react'
+import Card from './Card'
+import Icon from './Icon'
+
+/** Janela modal; fecha com Esc ou clicando fora. */
+export default function Modal({ title, open, onClose, children }) {
+  useEffect(() => {
+    if (!open) return undefined
+    const onKey = (e) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+
+  if (!open) return null
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <Card
+        className="modal"
+        title={title}
+        role="dialog"
+        aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
+        action={
+          <button className="icon-button" onClick={onClose} aria-label="Fechar">
+            <Icon name="x" size={18} />
+          </button>
+        }
+      >
+        {children}
+      </Card>
+    </div>
+  )
+}

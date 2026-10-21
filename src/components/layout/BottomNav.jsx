@@ -1,0 +1,32 @@
+import { NavLink } from 'react-router-dom'
+import Icon from '../ui/Icon'
+import { NAV } from './navItems'
+
+/** Barra inferior do mobile: itens principais + botão de ação central. */
+export default function BottomNav({ perfil, onOpenMenu }) {
+  const items = NAV[perfil].filter((i) => i.mobile)
+  const fab = NAV[perfil].find((i) => i.fab)
+  const left = items.slice(0, 2)
+  const right = items.slice(2)
+
+  const link = (i) => (
+    <NavLink key={i.to} to={i.to} end={i.end} className={({ isActive }) => (isActive ? 'active' : '')}>
+      <Icon name={i.icon} size={22} />
+      {i.label.split(' ')[0]}
+    </NavLink>
+  )
+
+  return (
+    <nav className="bottom-nav" aria-label="Navegação inferior">
+      {left.map(link)}
+      <NavLink to={fab.to} className="fab" aria-label={fab.label}>
+        <Icon name={fab.icon} size={24} />
+      </NavLink>
+      {right.map(link)}
+      <a href="#menu" onClick={(e) => (e.preventDefault(), onOpenMenu())}>
+        <Icon name="menu" size={22} />
+        Menu
+      </a>
+    </nav>
+  )
+}

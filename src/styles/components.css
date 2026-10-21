@@ -1,0 +1,633 @@
+/* ==========================================================
+   Componentes reutilizáveis (espelham a biblioteca do Figma)
+   ========================================================== */
+
+/* ---------- Card ---------- */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  border-radius: var(--radius);
+  background: var(--card);
+  border: 1px solid var(--line);
+  min-width: 0;
+}
+.card.compact {
+  padding: 16px;
+  gap: 12px;
+}
+.card.highlight {
+  background: #3b1f5e;
+  border-color: var(--pink);
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.card-header h2,
+.card-header h3 {
+  flex: 1;
+  font-size: 17px;
+  font-weight: 700;
+}
+.card-header .link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pink);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+/* ---------- Botão ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.05s;
+}
+.btn:hover {
+  filter: brightness(1.1);
+}
+.btn:active {
+  transform: translateY(1px);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--pink);
+  color: var(--white);
+}
+.btn-violet {
+  background: var(--violet);
+  color: var(--white);
+}
+.btn-secondary {
+  background: var(--card-2);
+  border-color: var(--line);
+  color: var(--white);
+}
+.btn-outline {
+  background: transparent;
+  border-color: var(--pink);
+  color: var(--pink);
+}
+.btn-block {
+  width: 100%;
+}
+.btn-sm {
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+/* ---------- Badge ---------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.badge-success {
+  color: var(--green);
+  background: rgba(76, 175, 80, 0.16);
+}
+.badge-warning {
+  color: var(--amber);
+  background: rgba(245, 165, 36, 0.16);
+}
+.badge-danger {
+  color: var(--red);
+  background: rgba(255, 92, 108, 0.16);
+}
+.badge-info {
+  color: var(--purple);
+  background: rgba(142, 100, 216, 0.16);
+}
+.badge-pink {
+  color: var(--pink);
+  background: rgba(232, 86, 166, 0.16);
+}
+.badge-neutral {
+  color: var(--muted);
+  background: rgba(199, 184, 191, 0.16);
+}
+
+/* ---------- KPI ---------- */
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px;
+  border-radius: var(--radius);
+  background: var(--card);
+  border: 1px solid var(--line);
+  min-width: 0;
+}
+.kpi-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+.kpi-value {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.kpi-delta {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ---------- Campo de formulário ---------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.field > span {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.input,
+.select,
+.textarea {
+  width: 100%;
+  padding: 13px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--card-2);
+  color: var(--white);
+  font-size: 14px;
+}
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--grey);
+}
+.input:focus,
+.select:focus,
+.textarea:focus {
+  outline: none;
+  border-color: var(--pink);
+}
+.textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+.field-error {
+  font-size: 12px;
+  color: var(--red);
+}
+.search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--card-2);
+  min-width: 0;
+}
+.search input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 0;
+  border: 0;
+  background: none;
+  outline: none;
+}
+.search input::placeholder {
+  color: var(--grey);
+}
+
+/* ---------- Controle segmentado / chips ---------- */
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--card-2);
+  max-width: 100%;
+}
+.segmented button {
+  padding: 9px 16px;
+  border-radius: 9px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+.segmented button.active {
+  background: var(--violet);
+  color: var(--white);
+  font-weight: 700;
+}
+
+/* ---------- Toggle ---------- */
+.toggle {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  border: 0;
+  background: var(--line);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--white);
+  transition: left 0.15s;
+}
+.toggle.on {
+  background: var(--pink);
+}
+.toggle.on::after {
+  left: 23px;
+}
+
+/* ---------- Opção selecionável ---------- */
+.option {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--card-2);
+  text-align: left;
+  cursor: pointer;
+}
+.option.selected {
+  border: 2px solid var(--pink);
+  background: #3b1f5e;
+}
+.option strong {
+  font-size: 15px;
+}
+.option .price {
+  font-weight: 700;
+}
+.option.selected .price {
+  color: var(--pink);
+}
+
+/* ---------- Barra de progresso ---------- */
+.progress {
+  width: 100%;
+  height: 8px;
+  border-radius: 8px;
+  background: var(--card-2);
+  overflow: hidden;
+}
+.progress > div {
+  height: 100%;
+  border-radius: 8px;
+  transition: width 0.4s ease;
+}
+
+/* ---------- Stepper ---------- */
+.stepper {
+  display: grid;
+  grid-template-columns: repeat(var(--steps), minmax(0, 1fr));
+  gap: 8px;
+}
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--grey);
+}
+.step-dot {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--card-2);
+}
+.step.done {
+  color: var(--white);
+}
+.step.done .step-dot {
+  background: var(--pink);
+}
+.step.current {
+  color: var(--white);
+  font-weight: 700;
+}
+.step.current .step-dot {
+  background: var(--violet);
+  box-shadow: 0 0 0 3px rgba(232, 86, 166, 0.5);
+}
+.stepper.vertical {
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+.stepper.vertical .step {
+  flex-direction: row;
+  font-size: 15px;
+  text-align: left;
+}
+.stepper.vertical .step.current {
+  color: var(--pink);
+}
+
+/* ---------- Linha do tempo ---------- */
+.timeline {
+  display: flex;
+  flex-direction: column;
+}
+.timeline-item {
+  position: relative;
+  display: flex;
+  gap: 14px;
+  padding-bottom: 16px;
+}
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 14px;
+  bottom: 0;
+  width: 2px;
+  background: var(--line);
+}
+.timeline-item:last-child::before {
+  display: none;
+}
+.timeline-dot {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: var(--purple);
+}
+.timeline-item strong {
+  display: block;
+  font-size: 14px;
+}
+
+/* ---------- Lista com ícone ---------- */
+.list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.icon-chip {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+}
+
+/* ---------- Tabela responsiva ---------- */
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--card-2);
+  white-space: nowrap;
+}
+.table th:first-child {
+  border-radius: 10px 0 0 10px;
+}
+.table th:last-child {
+  border-radius: 0 10px 10px 0;
+}
+.table td:first-child {
+  white-space: nowrap;
+}
+.table td {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+.table tr.clickable {
+  cursor: pointer;
+}
+.table tr.clickable:hover td {
+  background: rgba(255, 255, 255, 0.03);
+}
+.table tr.selected td {
+  background: rgba(110, 38, 233, 0.18);
+}
+.cell-sub {
+  display: block;
+  font-size: 12px;
+  color: var(--grey);
+}
+.person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  /* no mobile a tabela vira lista de cards */
+  .table thead {
+    display: none;
+  }
+  .table,
+  .table tbody,
+  .table tr,
+  .table td {
+    display: block;
+    width: 100%;
+  }
+  .table tr {
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--card-2);
+  }
+  .table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 0;
+    border: 0;
+    text-align: right;
+  }
+  .table td::before {
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--grey);
+    text-transform: uppercase;
+    text-align: left;
+  }
+}
+
+/* ---------- Avatar ---------- */
+.avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
+  font-weight: 700;
+  color: var(--white);
+}
+
+/* ---------- Mapa ilustrativo ---------- */
+.map {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #1e1238;
+}
+.map > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.map-overlay {
+  position: absolute;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.map-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 20px;
+  background: rgba(20, 10, 38, 0.92);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  font-weight: 600;
+}
+.map-marker {
+  cursor: pointer;
+}
+
+/* ---------- Modal ---------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.6);
+}
+.modal {
+  width: min(520px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: var(--card-2);
+  border: 1px solid var(--pink);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  font-weight: 600;
+  animation: toast-in 0.2s ease;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@media (max-width: 767px) {
+  .toast {
+    left: 16px;
+    right: 16px;
+    bottom: 96px;
+  }
+}
+
+/* ---------- Estado vazio ---------- */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* ---------- Gráfico de barras ---------- */
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 180px;
+}
+.bar-chart .bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  height: 100%;
+  font-size: 11px;
+  color: var(--grey);
+}
+.bar-chart .bar {
+  width: 100%;
+  max-width: 28px;
+  border-radius: 5px;
+  background: var(--purple);
+}
