@@ -11,7 +11,7 @@ const SEGMENTOS = ['Logística', 'Construção', 'Varejo', 'Saúde', 'Eventos', 
 
 /** Cadastro de usuário (cliente) ou de empresa. */
 export default function Cadastro() {
-  const { login, toast } = useApp()
+  const { cadastrar, toast } = useApp()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const [perfil, setPerfil] = useState(params.get('perfil') === 'empresa' ? 'empresa' : 'cliente')
@@ -23,7 +23,7 @@ export default function Cadastro() {
     setForm((f) => ({ ...f, [campo]: campo === 'documento' ? maskDocumento(v) : v }))
   }
 
-  const registrar = (e) => {
+  const registrar = async (e) => {
     e.preventDefault()
     const n = {}
     if (form.nome.trim().length < 3) n.nome = 'Informe o nome completo.'
@@ -36,14 +36,13 @@ export default function Cadastro() {
     setErros(n)
     if (Object.keys(n).length) return
 
-    if (perfil === 'empresa') {
-      login('empresa', { nome: 'Administrador', cargo: `Gestor · ${form.fantasia || form.nome}`, empresa: form.nome, cnpj: form.documento, email: form.email })
-      navigate('/empresa')
-    } else {
-      login('cliente', { nome: form.nome, email: form.email, documento: form.documento })
-      navigate('/cliente')
+    try {
+      await cadastrar({ perfil, nome: form.nome, email: form.email, senha: form.senha, documento: form.documento, fantasia: form.fantasia, segmento: form.segmento })
+      navigate(perfil === 'empresa' ? '/empresa' : '/cliente')
+      toast('Conta criada com sucesso! Bem-vindo(a) à Rota+.')
+    } catch (err) {
+      setErros({ email: err.status === 409 ? err.message : undefined, geral: err.message })
     }
-    toast('Conta criada com sucesso! Bem-vindo(a) à Rota+.')
   }
 
   return (
@@ -79,6 +78,11 @@ export default function Cadastro() {
             <span className="small">Aceito os Termos de Uso e a Política de Privacidade (LGPD)</span>
           </label>
           {erros.aceite && <small className="field-error">{erros.aceite}</small>}
+          {erros.geral && (
+            <p className="field-error" role="alert" style={{ fontSize: 14 }}>
+              {erros.geral}
+            </p>
+          )}
           <div className="row">
             <Button variant="secondary" onClick={() => navigate('/login')}>
               Voltar

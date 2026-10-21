@@ -1,9 +1,14 @@
+import { useId } from 'react'
+
 /** Campo de formulário com rótulo em caixa alta. Aceita input, select ou textarea. */
 export default function Field({ label, as = 'input', options, error, children, ...props }) {
-  let control
+  const id = useId()
+  const control = { id, 'aria-invalid': Boolean(error), ...props }
+
+  let input
   if (as === 'select') {
-    control = (
-      <select className="select" {...props}>
+    input = (
+      <select className="select" {...control}>
         {options.map((opt) => {
           const { value, label: text } = typeof opt === 'string' ? { value: opt, label: opt } : opt
           return (
@@ -15,16 +20,17 @@ export default function Field({ label, as = 'input', options, error, children, .
       </select>
     )
   } else if (as === 'textarea') {
-    control = <textarea className="textarea" {...props} />
+    input = <textarea className="textarea" {...control} />
   } else {
-    control = <input className="input" {...props} />
+    input = <input className="input" {...control} />
   }
 
   return (
-    <label className="field">
-      <span>{label}</span>
-      {children ?? control}
+    <div className="field">
+      {/* com children (ex.: botões segmentados) o rótulo é só visual */}
+      {children ? <span className="field-label">{label}</span> : <label className="field-label" htmlFor={id}>{label}</label>}
+      {children ?? input}
       {error && <small className="field-error">{error}</small>}
-    </label>
+    </div>
   )
 }

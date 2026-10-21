@@ -1,19 +1,6 @@
-// Dados de demonstração. Em produção viriam de uma API.
+// Dados de demonstração usados para popular o banco SQLite na primeira execução.
+export { CLIENTE_DEMO, EMPRESA_DEMO } from '../src/data/contasDemo.js'
 // Coordenadas x/y estão no sistema do mapa ilustrativo (1000 × 560).
-
-export const CLIENTE_DEMO = {
-  nome: 'Jhonata Soares',
-  email: 'jhonata@email.com',
-  documento: '123.456.789-00',
-}
-
-export const EMPRESA_DEMO = {
-  nome: 'Luís Veras',
-  cargo: 'Gestor · LogiSuape',
-  empresa: 'LogiSuape Transportes Ltda.',
-  cnpj: '12.345.678/0001-90',
-  email: 'luis@logisuape.com.br',
-}
 
 const ev = (titulo, descricao, data) => ({ titulo, descricao, data })
 

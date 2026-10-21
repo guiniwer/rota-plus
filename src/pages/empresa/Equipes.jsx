@@ -13,12 +13,11 @@ import ProgressBar from '../../components/ui/ProgressBar'
 import SearchInput from '../../components/ui/SearchInput'
 import Toggle from '../../components/ui/Toggle'
 import { useApp } from '../../context/AppContext'
-import { EQUIPE } from '../../data/mockData'
 
 const TOM = { 'Em rota': 'pink', Disponível: 'success', Offline: 'warning', 'Fora do turno': 'neutral' }
 
 export default function Equipes() {
-  const { privacidade, setPrivacidade, toast } = useApp()
+  const { equipe: EQUIPE, privacidade, setPrivacidade, toast } = useApp()
   const [busca, setBusca] = useState('')
   const [convite, setConvite] = useState(false)
   const [email, setEmail] = useState('')
@@ -45,7 +44,7 @@ export default function Equipes() {
       <Card>
         <SearchInput value={busca} onChange={setBusca} placeholder="Buscar colaborador, base ou veículo…" />
         <DataTable
-          rowKey="nome"
+          rowKey="id"
           rows={lista}
           columns={[
             { key: 'nome', label: 'Colaborador', render: (p) => (<span><Person name={p.nome} /><span className="cell-sub">{p.funcao}</span></span>) },

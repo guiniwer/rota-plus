@@ -5,20 +5,24 @@ import EmptyState from '../../components/ui/EmptyState'
 import Field from '../../components/ui/Field'
 import RastreioResultado from '../../components/entregas/RastreioResultado'
 import { useApp } from '../../context/AppContext'
-import { maskDocumento, onlyDigits } from '../../utils/format'
+import { maskDocumento } from '../../utils/format'
 
 /** Rastreio sem login: código do localizador + CPF/CNPJ. */
 export default function RastreioPublico() {
-  const { entregas, toast } = useApp()
+  const { rastrear, toast } = useApp()
   const [codigo, setCodigo] = useState('')
   const [documento, setDocumento] = useState('')
   const [resultado, setResultado] = useState(undefined) // undefined = ainda não buscou
   const [contato, setContato] = useState('')
 
-  const localizar = (e) => {
+  const [buscando, setBuscando] = useState(false)
+
+  // consulta pública na API: só devolve a entrega se código e documento conferirem
+  const localizar = async (e) => {
     e.preventDefault()
-    const achada = entregas.find((x) => x.id.toUpperCase() === codigo.trim().toUpperCase() && x.documento === onlyDigits(documento))
-    setResultado(achada ?? null)
+    setBuscando(true)
+    setResultado(await rastrear(codigo, documento))
+    setBuscando(false)
   }
 
   const usarExemplo = () => {
@@ -41,7 +45,9 @@ export default function RastreioPublico() {
           <form className="track-form" onSubmit={localizar}>
             <Field label="Código do localizador" placeholder="RT-00000-BR" value={codigo} onChange={(e) => setCodigo(e.target.value)} required />
             <Field label="CPF / CNPJ" placeholder="000.000.000-00" value={documento} onChange={(e) => setDocumento(maskDocumento(e.target.value))} inputMode="numeric" required />
-            <Button type="submit">Localizar encomenda</Button>
+            <Button type="submit" disabled={buscando}>
+              {buscando ? 'Buscando…' : 'Localizar encomenda'}
+            </Button>
           </form>
           <button type="button" className="btn btn-secondary btn-sm" style={{ alignSelf: 'flex-start' }} onClick={usarExemplo}>
             Usar exemplo (RT-90827-BR)

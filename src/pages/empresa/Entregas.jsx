@@ -50,9 +50,10 @@ export default function Entregas() {
     { value: 'concluidas', label: `Concluídas ${contar('concluidas')}` },
   ]
 
-  const criar = (e) => {
+  const criar = async (e) => {
     e.preventDefault()
-    const id = criarPedido({ cliente: nova.cliente, remetente: 'LogiSuape', destinatario: nova.cliente, origem: 'CD Recife', destino: nova.destino, tipoCarga: 'Volumes', pesoTaxado: 10, modalidade: 'normal', rastreio: 'gps', valor: 90, prazoTexto: `Hoje, ${nova.janela}`, janela: nova.janela, responsavel: nova.responsavel, criadoEm: 'Hoje' })
+    const id = await criarPedido({ cliente: nova.cliente, remetente: 'LogiSuape', destinatario: nova.cliente, origem: 'CD Recife', destino: nova.destino, tipoCarga: 'Volumes', pesoTaxado: 10, modalidade: 'normal', rastreio: 'gps', valor: 90, prazoTexto: `Hoje, ${nova.janela}`, janela: nova.janela, responsavel: nova.responsavel, criadoEm: 'Hoje' })
+    if (!id) return
     setNovaAberta(false)
     setNova({ cliente: '', destino: '', janela: '14:00–15:00', responsavel: RESPONSAVEIS[0] })
     toast(`Entrega ${id} criada e atribuída a ${nova.responsavel}.`)

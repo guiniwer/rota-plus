@@ -6,7 +6,7 @@ import Sidebar from './Sidebar'
 
 /** Layout das áreas logadas. Protege a rota pelo perfil (cliente/empresa). */
 export default function AppLayout({ perfil }) {
-  const { usuario } = useApp()
+  const { usuario, carregando } = useApp()
   const [menuOpen, setMenuOpen] = useState(false)
   const { pathname } = useLocation()
 
@@ -15,6 +15,7 @@ export default function AppLayout({ perfil }) {
     window.scrollTo(0, 0)
   }, [pathname])
 
+  if (carregando) return <div className="empty" style={{ minHeight: '100vh', justifyContent: 'center' }}>Carregando…</div>
   if (usuario?.perfil !== perfil) return <Navigate to="/login" replace state={{ perfil }} />
 
   return (

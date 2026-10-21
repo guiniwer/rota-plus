@@ -39,9 +39,10 @@ export default function Ativos() {
     )
   }, [ativos, tipo, status, busca])
 
-  const cadastrar = (e) => {
+  const cadastrar = async (e) => {
     e.preventDefault()
-    const id = cadastrarAtivo(novo)
+    const id = await cadastrarAtivo(novo)
+    if (!id) return
     setModal(false)
     setNovo(NOVO)
     toast(`Ativo ${id} cadastrado. Etiqueta pronta para impressão.`)

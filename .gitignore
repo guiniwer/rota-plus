@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# banco de dados SQLite local (criado automaticamente)
+server/data/

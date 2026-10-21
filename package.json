@@ -4,12 +4,17 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -k -n api,web -c magenta,cyan \"npm:dev:api\" \"npm:dev:web\"",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:api": "node --watch server/index.js",
+    "dev:web": "vite",
+    "start": "node server/index.js",
+    "db:reset": "node server/reset.js"
   },
   "dependencies": {
+    "express": "^5.3.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.4"
@@ -18,8 +23,12 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "concurrently": "^10.0.6",
     "oxlint": "^1.88.0",
     "vite": "^8.3.4"
   },
-  "description": "Rota+ — rastreabilidade de entregas e ativos (React + Vite)"
+  "description": "Rota+ — rastreabilidade de entregas e ativos (React + Express + SQLite)",
+  "engines": {
+    "node": ">=22.13"
+  }
 }

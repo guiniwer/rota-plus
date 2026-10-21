@@ -1,20 +1,23 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
-import usePersistentState from '../hooks/usePersistentState'
-import { ALERTAS, ATIVOS, CLIENTE_DEMO, EMPRESA_DEMO, ENTREGAS, NOTIFICACOES, PREFERENCIAS, PRIVACIDADE } from '../data/mockData'
-import { nowLabel } from '../utils/format'
-import { STATUS_ENTREGA } from '../utils/status'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { AlertasApi, AtivosApi, AuthApi, EntregasApi, GeralApi, tokenStorage } from '../services/api'
 
 const AppContext = createContext(null)
+const ATUALIZAR_A_CADA = 10_000 // ms — busca novidades no banco (ex.: status alterado pela empresa)
 
-/** Estado global da aplicação + ações de negócio. */
+/** Troca o item com o mesmo id dentro da lista. */
+const substituir = (lista, item) => lista.map((x) => (x.id === item.id ? item : x))
+
+/** Estado global da aplicação. Os dados vêm da API (Express + SQLite). */
 export function AppProvider({ children }) {
-  const [usuario, setUsuario] = usePersistentState('rota:usuario', null)
-  const [entregas, setEntregas] = usePersistentState('rota:entregas', ENTREGAS)
-  const [ativos, setAtivos] = usePersistentState('rota:ativos', ATIVOS)
-  const [alertas, setAlertas] = usePersistentState('rota:alertas', ALERTAS)
-  const [notificacoes, setNotificacoes] = usePersistentState('rota:notificacoes', NOTIFICACOES)
-  const [preferencias, setPreferencias] = usePersistentState('rota:preferencias', PREFERENCIAS)
-  const [privacidade, setPrivacidade] = usePersistentState('rota:privacidade', PRIVACIDADE)
+  const [usuario, setUsuario] = useState(null)
+  const [carregando, setCarregando] = useState(() => Boolean(tokenStorage.get()))
+  const [entregas, setEntregas] = useState([])
+  const [ativos, setAtivos] = useState([])
+  const [alertas, setAlertas] = useState([])
+  const [equipe, setEquipe] = useState([])
+  const [notificacoes, setNotificacoes] = useState([])
+  const [preferencias, setPrefState] = useState({})
+  const [privacidade, setPrivState] = useState({})
   const [toastMsg, setToastMsg] = useState(null)
 
   const toast = useCallback((msg) => {
@@ -22,154 +25,174 @@ export function AppProvider({ children }) {
     setTimeout(() => setToastMsg(null), 3200)
   }, [])
 
-  // ---------- autenticação (demonstração) ----------
-  const login = useCallback(
-    (perfil, dados = {}) => {
-      const base = perfil === 'empresa' ? EMPRESA_DEMO : CLIENTE_DEMO
-      setUsuario({ perfil, ...base, ...dados })
+  /** Executa uma chamada à API mostrando o erro em um toast. */
+  const executar = useCallback(
+    async (fn) => {
+      try {
+        return await fn()
+      } catch (err) {
+        toast(err.message)
+        if (err.status === 401) {
+          tokenStorage.clear()
+          setUsuario(null)
+        }
+        return null
+      }
     },
-    [setUsuario],
+    [toast],
   )
-  const logout = useCallback(() => setUsuario(null), [setUsuario])
+
+  // ---------- carregamento dos dados do usuário logado ----------
+  const carregarDados = useCallback(async (u) => {
+    if (u.perfil === 'empresa') {
+      const [e, a, al, eq, priv] = await Promise.all([EntregasApi.listar(), AtivosApi.listar(), AlertasApi.listar(), GeralApi.equipe(), GeralApi.config('privacidade')])
+      setEntregas(e)
+      setAtivos(a)
+      setAlertas(al)
+      setEquipe(eq)
+      setPrivState(priv)
+    } else {
+      const [e, n, pref] = await Promise.all([EntregasApi.listar(), GeralApi.notificacoes(), GeralApi.config('preferencias')])
+      setEntregas(e)
+      setNotificacoes(n)
+      setPrefState(pref)
+    }
+  }, [])
+
+  // ao abrir o site, recupera a sessão salva
+  useEffect(() => {
+    if (!tokenStorage.get()) return
+    AuthApi.me()
+      .then(async ({ usuario: u }) => {
+        await carregarDados(u)
+        setUsuario(u)
+      })
+      .catch(() => tokenStorage.clear())
+      .finally(() => setCarregando(false))
+  }, [carregarDados])
+
+  // atualização periódica: mostra mudanças feitas por outros usuários
+  useEffect(() => {
+    if (!usuario) return undefined
+    const id = setInterval(() => {
+      const tarefas =
+        usuario.perfil === 'empresa'
+          ? [EntregasApi.listar().then(setEntregas), AlertasApi.listar().then(setAlertas)]
+          : [EntregasApi.listar().then(setEntregas), GeralApi.notificacoes().then(setNotificacoes)]
+      Promise.all(tarefas).catch(() => {})
+    }, ATUALIZAR_A_CADA)
+    return () => clearInterval(id)
+  }, [usuario])
+
+  // ---------- autenticação ----------
+  const entrar = async (resposta) => {
+    tokenStorage.set(resposta.token)
+    await carregarDados(resposta.usuario)
+    setUsuario(resposta.usuario)
+    return resposta.usuario
+  }
+  /** Lança erro (com mensagem) se as credenciais forem inválidas. */
+  const login = async (perfil, credenciais) => entrar(await AuthApi.login({ perfil, ...credenciais }))
+  const cadastrar = async (dados) => entrar(await AuthApi.cadastro(dados))
+  const logout = async () => {
+    await AuthApi.logout().catch(() => {})
+    tokenStorage.clear()
+    setUsuario(null)
+  }
 
   // ---------- notificações ----------
-  const notificar = useCallback(
-    (n) => setNotificacoes((list) => [{ id: `N${Date.now()}`, lida: false, grupo: 'Hoje', quando: 'agora', ...n }, ...list]),
-    [setNotificacoes],
-  )
-  const marcarLida = (id) => setNotificacoes((list) => list.map((n) => (n.id === id ? { ...n, lida: true } : n)))
-  const marcarTodasLidas = () => setNotificacoes((list) => list.map((n) => ({ ...n, lida: true })))
+  const marcarLida = (id) => {
+    setNotificacoes((list) => list.map((n) => (n.id === id ? { ...n, lida: true } : n)))
+    executar(() => GeralApi.lerNotificacao(id))
+  }
+  const marcarTodasLidas = () => {
+    setNotificacoes((list) => list.map((n) => ({ ...n, lida: true })))
+    executar(() => GeralApi.lerTodas())
+  }
 
   // ---------- entregas ----------
-  const criarPedido = (dados) => {
-    const id = `RT-${Math.floor(10000 + Math.random() * 89999)}-BR`
-    const nova = {
-      id,
-      cliente: usuario?.nome ?? 'Cliente',
-      documento: (usuario?.documento ?? '').replace(/\D/g, ''),
-      status: 'confirmado',
-      criadoEm: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).replace('.', ''),
-      previsao: dados.prazoTexto,
-      janela: '—',
-      responsavel: null,
-      progresso: 0,
-      avaliacao: null,
-      eventos: [{ titulo: 'Pedido confirmado', descricao: 'Aguardando coleta na origem', data: nowLabel() }],
-      ...dados,
-    }
+  /** Cria o pedido e devolve o código gerado pelo banco (ou null se falhar). */
+  const criarPedido = async (dados) => {
+    const nova = await executar(() => EntregasApi.criar(dados))
+    if (!nova) return null
     setEntregas((list) => [nova, ...list])
-    notificar({ icon: 'check', cor: 'var(--green)', titulo: 'Pedido confirmado', texto: `Seu pedido ${id} foi registrado. Acompanhe pelo código.` })
-    return id
+    if (usuario?.perfil === 'cliente') GeralApi.notificacoes().then(setNotificacoes).catch(() => {})
+    return nova.id
   }
-
-  const atualizarStatusEntrega = (id, status, descricao) => {
-    setEntregas((list) =>
-      list.map((e) => {
-        if (e.id !== id) return e
-        const titulo = STATUS_ENTREGA[status]?.label ?? status
-        return {
-          ...e,
-          status,
-          progresso: status === 'entregue' ? 1 : e.progresso,
-          eventos: [{ titulo, descricao, data: nowLabel() }, ...e.eventos],
-        }
-      }),
-    )
+  const atualizarStatusEntrega = async (id, status, descricao) => {
+    const e = await executar(() => EntregasApi.status(id, status, descricao))
+    if (e) setEntregas((list) => substituir(list, e))
+    return e
   }
-
-  const atribuirEntrega = (id, responsavel) =>
-    setEntregas((list) => list.map((e) => (e.id === id ? { ...e, responsavel } : e)))
-
-  const avaliarEntrega = (id, avaliacao) => {
-    setEntregas((list) => list.map((e) => (e.id === id ? { ...e, avaliacao, status: 'entregue' } : e)))
-    toast('Obrigado! Sua avaliação foi registrada.')
+  const atribuirEntrega = async (id, responsavel) => {
+    const e = await executar(() => EntregasApi.responsavel(id, responsavel))
+    if (e) setEntregas((list) => substituir(list, e))
   }
+  const avaliarEntrega = async (id, avaliacao) => {
+    const e = await executar(() => EntregasApi.avaliar(id, avaliacao))
+    if (e) {
+      setEntregas((list) => substituir(list, e))
+      toast('Obrigado! Sua avaliação foi registrada.')
+    }
+  }
+  /** Rastreio público (sem login). Retorna a entrega ou null. */
+  const rastrear = (codigo, documento) => EntregasApi.rastrear(codigo, documento).catch(() => null)
 
   // ---------- ativos ----------
-  const registrarMovimentacao = (ativoId, { tipo, responsavel, local }) => {
-    setAtivos((list) =>
-      list.map((a) => {
-        if (a.id !== ativoId) return a
-        const evento =
-          tipo === 'checkout'
-            ? { titulo: `Check-out para ${responsavel}`, descricao: `Retirado em ${a.local}`, data: nowLabel(), cor: 'var(--pink)' }
-            : { titulo: `Check-in em ${local}`, descricao: `Registrado por ${responsavel} via QR Code`, data: nowLabel(), cor: 'var(--green)' }
-        return {
-          ...a,
-          responsavel: tipo === 'checkout' ? responsavel : a.responsavel,
-          local: tipo === 'checkin' ? local : a.local,
-          status: tipo === 'checkout' ? 'em_uso' : 'disponivel',
-          ultimaLeitura: 'agora',
-          historico: [evento, ...a.historico],
-        }
-      }),
-    )
+  const atualizarAtivo = async (fn) => {
+    const a = await executar(fn)
+    if (a) setAtivos((list) => substituir(list, a))
+    return a
   }
-
-  const transferirAtivo = (ativoId, responsavel) =>
-    setAtivos((list) =>
-      list.map((a) =>
-        a.id === ativoId
-          ? { ...a, responsavel, historico: [{ titulo: `Transferido para ${responsavel}`, descricao: 'Responsabilidade atualizada', data: nowLabel() }, ...a.historico] }
-          : a,
-      ),
-    )
-
-  const marcarExtraviado = (ativoId) =>
-    setAtivos((list) =>
-      list.map((a) =>
-        a.id === ativoId
-          ? { ...a, status: 'extraviado', historico: [{ titulo: 'Marcado como extraviado', descricao: 'Equipe notificada para busca', data: nowLabel(), cor: 'var(--red)' }, ...a.historico] }
-          : a,
-      ),
-    )
-
-  const cadastrarAtivo = (dados) => {
-    const prefixo = { Veículo: 'VEI', Equipamento: 'EQP', Ferramenta: 'FER', Mercadoria: 'MER' }[dados.tipo] ?? 'ATV'
-    const id = `${prefixo}-${Math.floor(1000 + Math.random() * 8999)}`
-    const novo = {
-      id,
-      bateria: dados.identificacao === 'GPS' ? 100 : null,
-      responsavel: null,
-      ultimaLeitura: 'agora',
-      status: 'disponivel',
-      x: 150 + Math.random() * 700,
-      y: 80 + Math.random() * 380,
-      uso: Array(14).fill(0),
-      historico: [{ titulo: 'Ativo cadastrado', descricao: `Etiqueta ${dados.identificacao} vinculada`, data: nowLabel(), cor: 'var(--green)' }],
-      ...dados,
-      valor: Number(dados.valor) || 0,
-    }
-    setAtivos((list) => [novo, ...list])
-    return id
+  const registrarMovimentacao = (id, mov) => atualizarAtivo(() => AtivosApi.movimentar(id, mov))
+  const transferirAtivo = (id, responsavel) => atualizarAtivo(() => AtivosApi.transferir(id, responsavel))
+  const marcarExtraviado = (id) => atualizarAtivo(() => AtivosApi.extraviado(id))
+  const cadastrarAtivo = async (dados) => {
+    const a = await executar(() => AtivosApi.criar(dados))
+    if (!a) return null
+    setAtivos((list) => [a, ...list])
+    return a.id
   }
 
   // ---------- alertas ----------
-  const atualizarAlerta = (id, fn) => setAlertas((list) => list.map((a) => (a.id === id ? fn(a) : a)))
-  const assumirAlerta = (id) => atualizarAlerta(id, (a) => ({ ...a, status: 'tratamento', responsavel: usuario?.nome ?? 'Você' }))
-  const resolverAlerta = (id) => atualizarAlerta(id, (a) => ({ ...a, status: 'resolvido', passos: a.passos.map((p) => ({ ...p, feito: true })) }))
-  const alternarPasso = (id, idx) =>
-    atualizarAlerta(id, (a) => ({ ...a, passos: a.passos.map((p, i) => (i === idx ? { ...p, feito: !p.feito } : p)) }))
+  const atualizarAlerta = async (fn) => {
+    const a = await executar(fn)
+    if (a) setAlertas((list) => substituir(list, a))
+    return a
+  }
+  const assumirAlerta = (id) => atualizarAlerta(() => AlertasApi.assumir(id))
+  const resolverAlerta = (id) => atualizarAlerta(() => AlertasApi.resolver(id))
+  const alternarPasso = (id, ordem) => atualizarAlerta(() => AlertasApi.alternarPasso(id, ordem))
 
-  const resetarDemo = () => {
-    setEntregas(ENTREGAS)
-    setAtivos(ATIVOS)
-    setAlertas(ALERTAS)
-    setNotificacoes(NOTIFICACOES)
-    setPreferencias(PREFERENCIAS)
-    setPrivacidade(PRIVACIDADE)
-    toast('Dados de demonstração restaurados.')
+  // ---------- configurações (aceitam objeto ou função, como o setState) ----------
+  const salvarConfig = (chave, setter, atual) => (valorOuFn) => {
+    const novo = typeof valorOuFn === 'function' ? valorOuFn(atual) : valorOuFn
+    setter(novo)
+    executar(() => GeralApi.salvarConfig(chave, novo))
+  }
+  const setPreferencias = salvarConfig('preferencias', setPrefState, preferencias)
+  const setPrivacidade = salvarConfig('privacidade', setPrivState, privacidade)
+
+  const resetarDemo = async () => {
+    const ok = await executar(() => GeralApi.resetDemo())
+    if (!ok) return
+    tokenStorage.clear()
+    setUsuario(null)
+    toast('Banco restaurado com os dados de demonstração. Entre novamente.')
   }
 
   const value = {
     usuario,
+    carregando,
     login,
+    cadastrar,
     logout,
     entregas,
     criarPedido,
     atualizarStatusEntrega,
     atribuirEntrega,
     avaliarEntrega,
+    rastrear,
     ativos,
     registrarMovimentacao,
     transferirAtivo,
@@ -179,6 +202,7 @@ export function AppProvider({ children }) {
     assumirAlerta,
     resolverAlerta,
     alternarPasso,
+    equipe,
     notificacoes,
     marcarLida,
     marcarTodasLidas,
@@ -201,9 +225,8 @@ export function useApp() {
   return ctx
 }
 
-// Helpers derivados usados em várias telas
+/** Entregas do cliente logado (a API já devolve só as dele). */
 // eslint-disable-next-line react-refresh/only-export-components
 export function useEntregasDoCliente() {
-  const { entregas, usuario } = useApp()
-  return useMemo(() => entregas.filter((e) => e.cliente === usuario?.nome), [entregas, usuario])
+  return useApp().entregas
 }

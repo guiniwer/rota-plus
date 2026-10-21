@@ -39,7 +39,7 @@ export default function NovoPedido() {
   const set = (campo) => (e) => setForm((f) => ({ ...f, [campo]: e?.target ? e.target.value : e }))
   const frete = useMemo(() => calcularFrete(form), [form])
 
-  const enviar = (e) => {
+  const enviar = async (e) => {
     e.preventDefault()
     const n = {}
     if (!form.destinatario.trim()) n.destinatario = 'Informe o destinatário.'
@@ -51,7 +51,7 @@ export default function NovoPedido() {
       toast('Revise os campos destacados.')
       return
     }
-    const id = criarPedido({
+    const id = await criarPedido({
       remetente: 'Você',
       destinatario: form.destinatario,
       origem: form.origem,
@@ -63,6 +63,7 @@ export default function NovoPedido() {
       valor: frete.total,
       prazoTexto: frete.prazoTexto,
     })
+    if (!id) return
     toast(`Pedido ${id} criado!`)
     navigate(`/cliente/status/${id}`)
   }

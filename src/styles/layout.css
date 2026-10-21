@@ -162,14 +162,14 @@
     padding: 24px 12px;
     align-items: center;
   }
-  .brand span,
+  .sidebar .brand span,
   .sidebar-section,
   .nav-item span,
   .nav-badge,
   .user-card div {
     display: none;
   }
-  .brand {
+  .sidebar .brand {
     padding: 0 0 20px;
   }
   .nav-item {
@@ -231,6 +231,15 @@
   }
   .topbar-search {
     display: none;
+  }
+  .topbar-actions {
+    flex-wrap: wrap;
+    width: 100%;
+    margin-left: 0;
+  }
+  .topbar-actions .select {
+    flex: 1;
+    min-width: 0 !important;
   }
   .app-body {
     padding: 4px 16px 110px;
