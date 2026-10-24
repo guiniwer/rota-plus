@@ -56,6 +56,7 @@ export default function MapaLeaflet({ marcadores = [], linhas = [], selecionadoI
     return () => {
       obs.disconnect()
       enquadrarRef.current = null
+      ajustadoRef.current = null // um mapa recriado (ex.: StrictMode) precisa ser enquadrado de novo
       mapaRef.current = null
       mapa.remove()
     }

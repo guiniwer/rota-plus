@@ -23,7 +23,13 @@ import { TIPO_ATIVO_ICON } from '../../utils/status'
 import { dataHora, relativo } from '../../utils/tempo'
 
 const API_URL = `${window.location.origin}/api`
-const HORAS_DIA = 10 // referência do gráfico de uso
+/** Horas do expediente da empresa (ex.: 06:00–22:00 = 16 h): a capacidade de uso de um ativo por dia, igual ao relatório. */
+function horasExpediente(empresa) {
+  const min = (hhmm = '08:00') => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5))
+  let h = (min(empresa?.turnoFim ?? '18:00') - min(empresa?.turnoInicio ?? '08:00')) / 60
+  if (h <= 0) h += 24
+  return h
+}
 
 /** Rótulos dos últimos n dias (o último é hoje): "seg 13" */
 const ultimosDias = (n) =>
@@ -78,7 +84,7 @@ function Rastreador({ ativo }) {
 export default function AtivoDetalhe() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { ativos, entregas, equipe, registrarMovimentacao, transferirAtivo, marcarExtraviado, toast } = useApp()
+  const { ativos, entregas, equipe, empresa, registrarMovimentacao, transferirAtivo, marcarExtraviado, toast } = useApp()
   const ativo = ativos.find((a) => a.id === id)
   const [modal, setModal] = useState(null) // 'mov' | 'transferir' | 'extraviado'
   const [mov, setMov] = useState({ tipo: 'checkout', responsavelId: '', local: '' })
@@ -109,8 +115,9 @@ export default function AtivoDetalhe() {
 
   const uso = ativo.uso ?? []
   const horasUso = Math.round(uso.reduce((s, h) => s + h, 0))
-  const diasUteis = uso.filter((_, i) => new Date(Date.now() - (uso.length - 1 - i) * 864e5).getDay() !== 0).length
-  const utilizacao = uso.length ? Math.round((horasUso / (diasUteis * HORAS_DIA)) * 100) : 0
+  // mesma regra dos Relatórios: horas retirado ÷ (dias × horas de expediente), no máximo 100%
+  const horasDia = horasExpediente(empresa)
+  const utilizacao = uso.length ? Math.min(100, Math.round((horasUso / (uso.length * horasDia)) * 100)) : 0
   const cor = COR_STATUS_ATIVO[ativo.status]
   const entrega = ativo.entregaId ? entregas.find((e) => e.id === ativo.entregaId) : null
   const opcoesEquipe = equipe.map((p) => ({ value: String(p.id), label: p.nome }))
@@ -219,7 +226,7 @@ export default function AtivoDetalhe() {
           </Card>
         ) : (
           <Card title="Uso nas últimas 2 semanas (horas/dia)">
-            <BarChart data={uso.map((h, i) => ({ label: ultimosDias(uso.length)[i], value: h, color: h === 0 ? 'var(--line)' : 'var(--purple)' }))} max={Math.max(HORAS_DIA, ...uso)} format={(v) => `${v} h`} />
+            <BarChart data={uso.map((h, i) => ({ label: ultimosDias(uso.length)[i], value: h, color: h === 0 ? 'var(--line)' : 'var(--purple)' }))} max={Math.max(horasDia, ...uso)} format={(v) => `${v} h`} />
             <span className="small grey">Calculado pelos intervalos entre check-out e check-in.</span>
             {utilizacao < 50 && horasUso > 0 && <p className="small" style={{ color: 'var(--purple)' }}>Ativo pouco utilizado — avalie realocar para outra equipe ou obra.</p>}
           </Card>

@@ -36,7 +36,7 @@ O **Rota+** é uma aplicação web responsiva, multiempresa, com quatro frentes:
 | **Site público** | Qualquer pessoa | Apresentação, cotação de frete, mapa das transportadoras e **rastreio sem login** (código + CPF/CNPJ), com mapa e previsão de chegada |
 | **Área do cliente** | Quem envia ou recebe | Menu enxuto (Início, Meus pedidos, Meu perfil). Uma página por pedido com tudo junto. Pedido com escolha da transportadora e frete calculado no servidor, entregador no mapa com ETA real, conversa com o entregador, reagendamento, recado, comprovante (foto + assinatura), etiqueta com QR, notificações push e por e-mail, avaliação |
 | **Visão operacional** | Administrador da empresa | Menu com 7 áreas: **Painel** (indicadores, mapa ao vivo com tela cheia, alertas, prazos e gargalos), **Entregas** (criação, importação CSV, atribuição, aviso por e-mail/WhatsApp), **Ativos** (QR/RFID/GPS, escanear, etiquetas, rastreador), **Central de alertas**, **Equipes** (convites, adesão, rota de cada entregador), **Relatórios** e **Configurações** (Empresa, Privacidade/LGPD, Integrações com caixa de saída) |
-| **App do entregador** | Entregador da empresa | Feito para uma mão: a próxima parada e o botão principal aparecem sem rolar; **um toque por parada** na rua. Só as entregas dele, na ordem da **rota otimizada**, GPS do aparelho, um botão por etapa, comprovante com foto, assinatura e localização, **fila offline** que envia sozinha ao reconectar |
+| **App do entregador** | Entregador da empresa | Feito para uma mão: a próxima parada e o botão principal aparecem sem rolar; **um toque por parada** na rua. Só as entregas dele, na ordem da **rota otimizada**, GPS do aparelho, comprovante com foto, assinatura e localização, **fila offline** que envia sozinha ao reconectar |
 
 ### Separação por empresa (CNPJ)
 
@@ -172,16 +172,28 @@ curl -X POST http://localhost:3001/api/dispositivos/posicao \
   -d '{"lat":-8.0631,"lng":-34.8711,"velocidade":32,"bateria":87}'
 ```
 
-## Responsividade
+## Navegação e responsividade
+
+As telas foram enxugadas para mostrar só o que cada perfil usa no dia a dia:
+
+| Perfil | Menu |
+|---|---|
+| Cliente | **Início**, **Meus pedidos** e o botão **+ Novo pedido**. Cada pedido tem uma página única (mapa e chegada, entregador, linha do tempo, etiqueta, comprovante, reagendar, recado e avaliação). Notificações ficam no sino do topo |
+| Administrador | **Painel** (com o mapa ao vivo), **Entregas**, **Ativos**, **Central de alertas**, **Equipes**, **Relatórios** e **Configurações** (3 abas) |
+| Entregador | Uma tela só: próxima parada com o botão principal, as paradas seguintes, mapa da rota e concluídas do dia |
+
+O menu é do tipo **hambúrguer** (☰) em todas as larguras: fica escondido e abre por cima da tela, fechando com Esc, com um clique fora ou ao escolher uma tela. O perfil fica no avatar do topo e no cartão do rodapé do menu.
 
 | Largura | Comportamento |
 |---|---|
-| ≥ 1024 px (desktop) | Sidebar completa + conteúdo em grid com coluna lateral |
-| 768 – 1023 px (tablet) | Sidebar só com ícones; a coluna lateral desce para baixo do conteúdo |
-| < 768 px (celular) | **Barra inferior** com botão central (+ Novo pedido / Escanear), menu lateral deslizante e **tabelas que viram cards** |
+| ≥ 1024 px (desktop) | Conteúdo em grid com coluna lateral |
+| 768 – 1023 px (tablet) | A coluna lateral desce para baixo do conteúdo |
+| < 768 px (celular) | **Barra inferior** com atalhos e botão central (+ Novo pedido para o cliente, Escanear para o administrador) e **tabelas que viram cards**. O app do entregador dispensa a barra |
 
 <p>
-  <img src="docs/screenshots/mobile-cliente.png" alt="Versão mobile" width="260" />
+  <img src="docs/screenshots/mobile-cliente.png" alt="Página do pedido no celular" width="260" />
+  &nbsp;
+  <img src="docs/screenshots/entregador.png" alt="App do entregador no celular" width="260" />
 </p>
 
 ## Estrutura de pastas
@@ -275,17 +287,17 @@ A empresa de demonstração vem com 30 dias de operação gerados com datas rela
 
 ## Capturas de tela
 
-| Área do cliente | Novo pedido |
+| Início do cliente | Página do pedido |
 |---|---|
-| ![](docs/screenshots/cliente-inicio.png) | ![](docs/screenshots/novo-pedido.png) |
+| ![](docs/screenshots/cliente-inicio.png) | ![](docs/screenshots/pedido.png) |
 
-| Painel da empresa | Detalhe do ativo |
+| Novo pedido | Painel da empresa (com o mapa ao vivo) |
 |---|---|
-| ![](docs/screenshots/empresa-painel.png) | ![](docs/screenshots/ativo-detalhe.png) |
+| ![](docs/screenshots/novo-pedido.png) | ![](docs/screenshots/empresa-painel.png) |
 
-| Central de alertas | Tela do entregador (rota otimizada) |
+| Ficha do ativo | Central de alertas |
 |---|---|
-| ![](docs/screenshots/alertas.png) | ![](docs/screenshots/entregador.png) |
+| ![](docs/screenshots/ativo-detalhe.png) | ![](docs/screenshots/alertas.png) |
 
 ---
 
