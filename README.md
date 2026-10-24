@@ -2,6 +2,8 @@
 
 Aplicação web **full stack** (React + Node.js/Express + banco de dados **SQLite**) que dá visibilidade ponta a ponta sobre entregas, equipamentos, ferramentas, veículos e mercadorias. Ela atende tanto quem **envia ou recebe** uma encomenda quanto a **empresa** que gerencia a operação.
 
+**🌐 Acesse online:** [rota-plus-j91m.onrender.com](https://rota-plus-j91m.onrender.com) (contas de demonstração [abaixo](#contas-de-demonstração); o primeiro acesso pode levar ~50 s enquanto o servidor acorda)
+
 ![Página inicial](docs/screenshots/landing.png)
 
 ---
@@ -270,7 +272,7 @@ Abra **http://localhost:5173** (a API fica na porta **3001**). Na primeira execu
 
 O app é um único processo Node (API + front-end compilado) com um arquivo SQLite, então roda em qualquer serviço que aceite Node 22.13+ ou Docker.
 
-**Render (recomendado, tem plano grátis):** em [dashboard.render.com](https://dashboard.render.com) → **New + → Blueprint** → escolha este repositório. O `render.yaml` já configura build, start, health check e as variáveis. O endereço sai como `https://rota-plus.onrender.com` (ou parecido), com HTTPS, e cada `git push` publica de novo.
+**Render (recomendado, tem plano grátis):** em [dashboard.render.com](https://dashboard.render.com) → **New + → Blueprint** → escolha este repositório. O `render.yaml` já configura build, start, health check e as variáveis. O endereço sai como `https://rota-plus-xxxx.onrender.com`, com HTTPS, e cada `git push` publica de novo.
 
 - No plano **free** o servidor dorme após 15 min sem acesso (o primeiro acesso leva cerca de 50 s) e o banco volta à demonstração quando reinicia. Abra o link um minuto antes de apresentar.
 - Para guardar dados de verdade, use o plano **starter** e descomente o bloco `disk` do `render.yaml` (banco em `/var/data`).
