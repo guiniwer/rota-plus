@@ -11,10 +11,9 @@ export default function AppLayout({ perfil }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const { pathname } = useLocation()
 
-  // volta ao topo e fecha o menu ao trocar de tela
+  // volta ao topo ao trocar de tela (o menu fecha no próprio clique do item)
   useEffect(() => {
     window.scrollTo(0, 0)
-    setMenuOpen(false)
   }, [pathname])
 
   // Esc fecha o menu

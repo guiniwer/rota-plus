@@ -44,10 +44,10 @@ export default function MapaEntrega({ entrega, height = 320, acompanhamento, doc
         <Icon name="truck" size={16} color="var(--pink)" /> {STATUS_ENTREGA[entrega.status].label}
       </MapChip>
       {a?.eta && (
-        <div className="map-overlay" style={{ top: 12, right: 12 }}>
-          <div className="map-chip" style={{ flexDirection: 'column', alignItems: 'flex-start', borderRadius: 14, padding: 12 }}>
+        <div className="map-overlay eta-overlay">
+          <div className="map-chip eta-chip">
             <span className="label">Chegada estimada</span>
-            <strong style={{ fontSize: 24, color: 'var(--pink)' }}>{hora(a.eta.chegada)}</strong>
+            <strong>{hora(a.eta.chegada)}</strong>
             <span className="small muted">
               ~{duracao(a.eta.minutos)} · {a.eta.distanciaKm.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km{a.paradasAntes ? ` · ${a.paradasAntes} parada(s) antes` : ''}
             </span>

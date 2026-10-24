@@ -170,12 +170,44 @@ function Integracoes() {
           Um rastreador ou celular dedicado envia a posição de um ativo para <code>POST {API_URL}/dispositivos/posicao</code> com o cabeçalho <code>X-Dispositivo-Token</code>. Gere o token na página do ativo.
         </p>
       </Card>
-      <Card title="E-mail e WhatsApp">
-        <p className="small muted">
-          {empresa.emailConfigurado ? 'O servidor está com SMTP configurado: avisos e convites são enviados por e-mail.' : 'Configure SMTP_HOST, SMTP_USER, SMTP_PASS e SMTP_FROM no servidor para enviar e-mails. Até lá, as mensagens ficam registradas na caixa de saída.'} Avisos por WhatsApp abrem o WhatsApp do operador com a mensagem pronta (wa.me).
-        </p>
-      </Card>
+      <EmailTeste />
     </div>
+  )
+}
+
+function EmailTeste() {
+  const { empresa, usuario, executar } = useApp()
+  const [para, setPara] = useState(usuario.email ?? '')
+  const [resultado, setResultado] = useState(null)
+  const [enviando, setEnviando] = useState(false)
+  const enviar = async (ev) => {
+    ev.preventDefault()
+    setEnviando(true)
+    setResultado(await executar(() => EmpresaApi.testarEmail(para)))
+    setEnviando(false)
+  }
+  return (
+    <Card title="E-mail e WhatsApp" action={<Badge tone={empresa.emailConfigurado ? 'success' : 'warning'}>{empresa.emailConfigurado ? 'SMTP configurado' : 'SMTP não configurado'}</Badge>}>
+      <p className="small muted">
+        {empresa.emailConfigurado
+          ? 'Avisos ao cliente e convites de entregador são enviados por e-mail.'
+          : 'Configure SMTP_HOST, SMTP_USER, SMTP_PASS e SMTP_FROM no servidor para enviar e-mails. Até lá, as mensagens ficam registradas na caixa de saída.'}{' '}
+        Avisos por WhatsApp abrem o WhatsApp do operador com a mensagem pronta (wa.me).
+      </p>
+      <form className="row wrap" onSubmit={enviar}>
+        <div className="grow">
+          <Field label="Enviar e-mail de teste para" type="email" value={para} onChange={(e) => setPara(e.target.value)} required />
+        </div>
+        <Button type="submit" variant="secondary" icon="mail" disabled={enviando} style={{ alignSelf: 'flex-end' }}>
+          {enviando ? 'Enviando…' : 'Enviar teste'}
+        </Button>
+      </form>
+      {resultado && (
+        <p className={`small ${resultado.status === 'enviado' ? 'green' : resultado.status === 'falhou' ? 'red' : 'amber'}`}>
+          {resultado.status === 'enviado' ? `Enviado para ${para}. Confira a caixa de entrada (e o spam).` : resultado.status === 'falhou' ? `Falhou: ${resultado.erro}` : 'Registrado na caixa de saída, mas não enviado: o SMTP não está configurado no servidor.'}
+        </p>
+      )}
+    </Card>
   )
 }
 

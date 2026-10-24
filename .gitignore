@@ -25,3 +25,7 @@ dist-ssr
 
 # banco de dados SQLite local (criado automaticamente)
 server/data/
+
+# testes de tela (Playwright)
+test-results/
+playwright-report/

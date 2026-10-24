@@ -18,6 +18,15 @@ const transporte = process.env.SMTP_HOST
   : null
 const REMETENTE = process.env.SMTP_FROM ?? 'Rota+ <nao-responda@rotaplus.app>'
 export const emailConfigurado = () => Boolean(transporte)
+
+/** Confere a conexão com o servidor SMTP ao subir a API (só registra no log; nunca derruba o servidor). */
+export function verificarEmail() {
+  if (!transporte) return console.log('[email] SMTP não configurado: as mensagens ficam só na caixa de saída.')
+  transporte
+    .verify()
+    .then(() => console.log(`[email] SMTP pronto (${process.env.SMTP_HOST}).`))
+    .catch((err) => console.warn('[email] SMTP configurado, mas a conexão falhou:', err.message))
+}
 export const URL_APP = process.env.APP_URL ?? 'http://localhost:5173'
 
 const registrar = (m) =>

@@ -22,6 +22,8 @@ export function noExpediente(empresa, quando = new Date()) {
   return ini <= fim ? agora >= ini && agora < fim : agora >= ini || agora < fim
 }
 
+const SUPORTADO = typeof navigator !== 'undefined' && 'geolocation' in navigator
+
 /**
  * GPS do app do entregador: acompanha a posição (navigator.geolocation) e envia para a API.
  * Respeita a LGPD da empresa: fora do expediente não envia nada.
@@ -58,11 +60,7 @@ export default function useRastreamentoGps(empresa, { ativo = true } = {}) {
   )
 
   useEffect(() => {
-    if (!ativo || !empresa) return undefined
-    if (!('geolocation' in navigator)) {
-      setEstado('indisponivel')
-      return undefined
-    }
+    if (!ativo || !empresa || !SUPORTADO) return undefined
     const id = navigator.geolocation.watchPosition(
       (pos) => {
         const p = {
@@ -101,5 +99,5 @@ export default function useRastreamentoGps(empresa, { ativo = true } = {}) {
     [],
   )
 
-  return { estado, posicao, ultimoEnvio, posicaoAgora }
+  return { estado: SUPORTADO ? estado : 'indisponivel', posicao, ultimoEnvio, posicaoAgora }
 }

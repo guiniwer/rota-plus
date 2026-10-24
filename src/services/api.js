@@ -56,8 +56,14 @@ export async function baixar(path, nome) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-/** URL do fluxo de eventos em tempo real (EventSource não envia cabeçalhos: o token vai na URL). */
-export const urlEventos = () => `${BASE}/eventos?token=${encodeURIComponent(tokenStorage.get() ?? '')}`
+/**
+ * URL do fluxo de eventos em tempo real. O EventSource não envia cabeçalhos, então pedimos antes
+ * um ingresso de uso único (60 s) — o token da sessão nunca vai na URL.
+ */
+export async function urlEventos() {
+  const { ingresso } = await api('/eventos/ingresso', { method: 'POST' })
+  return `${BASE}/eventos?ingresso=${encodeURIComponent(ingresso)}`
+}
 
 const qs = (params) => new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '')).toString()
 
@@ -133,6 +139,7 @@ export const EmpresaApi = {
   revogarApiKey: () => api('/empresa/api-key', { method: 'DELETE' }),
   webhook: (url) => api('/empresa/webhook', { method: 'PUT', body: { url } }),
   testarWebhook: () => api('/empresa/webhook/teste', { method: 'POST' }),
+  testarEmail: (para) => api('/empresa/email/teste', { method: 'POST', body: { para } }),
   mensagens: () => api('/mensagens'),
   relatorio: (periodo) => api(`/relatorios?${qs({ periodo })}`),
   baixarRelatorio: (periodo) => baixar(`/relatorios/csv?${qs({ periodo })}`, `relatorio-rota-plus-${periodo}.csv`),

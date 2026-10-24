@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
+const SUPORTADO = typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia)
+
 /**
  * Lê QR Codes (e códigos de barras, quando o navegador suporta) pela câmera traseira.
  * Usa o BarcodeDetector nativo quando existe; senão decodifica os quadros com jsQR.
@@ -7,7 +9,8 @@ import { useEffect, useRef, useState } from 'react'
  */
 export default function LeitorCamera({ ativo, onLeitura }) {
   const videoRef = useRef(null)
-  const [estado, setEstado] = useState('parado') // parado | iniciando | lendo | negado | indisponivel | erro
+  const [estadoLido, setEstado] = useState('parado') // parado | iniciando | lendo | negado | indisponivel | erro
+  const estado = SUPORTADO ? estadoLido : 'indisponivel'
   const ultimo = useRef({ texto: null, em: 0 })
   const onLeituraRef = useRef(onLeitura)
   useEffect(() => {
@@ -15,11 +18,7 @@ export default function LeitorCamera({ ativo, onLeitura }) {
   })
 
   useEffect(() => {
-    if (!ativo) return undefined
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setEstado('indisponivel')
-      return undefined
-    }
+    if (!ativo || !SUPORTADO) return undefined
     let vivo = true
     let stream
     let quadro

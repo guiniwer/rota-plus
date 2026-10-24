@@ -8,7 +8,7 @@ import { empresaToJson, notificacaoToJson } from '../mappers.js'
 import { URL_APP, chavePublicaPush, dispararWebhook, emailConfigurado, enviarEmail, notificar } from '../mensageria.js'
 import { gerarRelatorio, relatorioCsv } from '../relatorios.js'
 import { DIA, MIN, agora, dentroDoTurno, localParaUtc, partesLocais } from '../tempo.js'
-import { conectar, publicar } from '../tempoReal.js'
+import { autenticarIngresso, conectar, emitirIngresso, publicar } from '../tempoReal.js'
 
 // Notificações, preferências, push, equipe, empresa, integrações, relatórios e utilidades
 const router = Router()
@@ -22,7 +22,8 @@ router.get('/empresas', (req, res) => res.json(db.prepare('SELECT * FROM empresa
 router.get('/sistema', (req, res) => res.json({ emailConfigurado: emailConfigurado(), pushChavePublica: chavePublicaPush() }))
 
 // ---------- tempo real (Server-Sent Events) ----------
-router.get('/eventos', autenticar, conectar)
+router.post('/eventos/ingresso', autenticar, emitirIngresso)
+router.get('/eventos', autenticarIngresso, conectar)
 
 // ---------- notificações do usuário logado ----------
 router.get('/notificacoes', autenticar, (req, res) => {
@@ -146,6 +147,20 @@ router.post('/empresa/webhook/teste', ...admin, async (req, res) => {
   const e = empresaDo(req)
   if (!e.webhook_url) return res.status(400).json({ erro: 'Cadastre a URL do webhook primeiro.' })
   res.json(await dispararWebhook(e, 'teste', { mensagem: 'Webhook do Rota+ configurado com sucesso.', empresa: e.fantasia || e.razao_social }))
+})
+
+// e-mail de teste: confere a configuração SMTP do servidor
+router.post('/empresa/email/teste', ...admin, async (req, res) => {
+  const para = String(req.body?.para ?? req.usuario.email ?? '').trim()
+  if (!/^\S+@\S+\.\S+$/.test(para)) return res.status(400).json({ erro: 'Informe um e-mail válido.' })
+  const e = empresaDo(req)
+  const r = await enviarEmail({
+    empresaId: e.id,
+    para,
+    assunto: 'Rota+ · e-mail de teste',
+    texto: `Olá! Este é um e-mail de teste do Rota+ para ${e.fantasia || e.razao_social}.\nSe você recebeu, os avisos e convites por e-mail estão funcionando.\n\n${URL_APP}`,
+  })
+  res.json(r)
 })
 
 // caixa de saída (e-mails, WhatsApp, webhooks)

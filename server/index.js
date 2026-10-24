@@ -4,6 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DB_PATH } from './db.js'
 import { limitar } from './limite.js'
+import { verificarEmail } from './mensageria.js'
 import { iniciarMonitor } from './monitor.js'
 import alertasRoutes from './routes/alertas.js'
 import ativosRoutes from './routes/ativos.js'
@@ -56,4 +57,5 @@ app.listen(PORT, () => {
   console.log(`[api] Rota+ rodando em http://localhost:${PORT}`)
   console.log(`[db]  banco SQLite: ${DB_PATH}`)
   iniciarMonitor()
+  verificarEmail()
 })

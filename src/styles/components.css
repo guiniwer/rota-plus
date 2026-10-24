@@ -969,3 +969,47 @@ a.user-card.active {
 .recolhivel[open] summary {
   margin-bottom: 4px;
 }
+
+/* quadro "Chegada estimada" sobre o mapa da entrega */
+.eta-overlay {
+  top: 12px;
+  right: 12px;
+}
+.eta-chip {
+  flex-direction: column;
+  align-items: flex-start;
+  border-radius: 14px;
+  padding: 12px;
+}
+.eta-chip strong {
+  font-size: 24px;
+  color: var(--pink);
+}
+@media (max-width: 767px) {
+  /* no celular vira uma faixa estreita no rodapé do mapa, sem cobrir o trajeto */
+  .eta-overlay {
+    top: auto;
+    right: auto;
+    left: 8px;
+    bottom: 22px;
+  }
+  .eta-chip {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 10px;
+  }
+  .eta-chip .label {
+    display: none;
+  }
+  .eta-chip strong {
+    font-size: 17px;
+  }
+  .eta-chip strong::before {
+    content: 'Chega ';
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+}

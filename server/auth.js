@@ -33,10 +33,10 @@ export function criarSessao(usuarioId) {
 
 /**
  * Middleware: exige "Authorization: Bearer <token>" válido e não expirado.
- * Também aceita ?token= (EventSource e downloads não conseguem enviar cabeçalhos).
+ * O token vem só no cabeçalho (o fluxo de tempo real usa um ingresso de uso único: ver tempoReal.js).
  */
 export function autenticar(req, res, next) {
-  const token = req.get('authorization')?.replace(/^Bearer\s+/i, '') || req.query.token
+  const token = req.get('authorization')?.replace(/^Bearer\s+/i, '')
   const sessao = token ? db.prepare('SELECT * FROM sessoes WHERE token = ?').get(String(token)) : null
   if (!sessao || sessao.expira_em < agora()) {
     if (sessao) db.prepare('DELETE FROM sessoes WHERE token = ?').run(sessao.token)

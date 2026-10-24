@@ -23,8 +23,8 @@ export const ENTREGADORES = [
   { nome: 'Rafael Toscano', email: 'rafael@logisuape.com.br', telefone: '(81) 99702-3318', veiculo: 'Caminhão PE-07', regiao: 'suape' },
   { nome: 'Jonas Ferreira', email: 'jonas@logisuape.com.br', telefone: '(81) 98123-7765', veiculo: 'Van PE-05', regiao: 'recife' },
   {
-    nome: 'Bruno Carvalho', email: 'bruno@logisuape.com.br', telefone: '(11) 97410-5522', veiculo: 'Van SP-04', regiao: 'sp',
-    base: { nome: 'CD Pinheiros (SP)', lat: -23.567, lng: -46.692 },
+    nome: 'Bruno Carvalho', email: 'bruno@logisuape.com.br', telefone: '(81) 97410-5522', veiculo: 'Van PE-04', regiao: 'agreste',
+    base: { nome: 'CD Caruaru (Agreste)', lat: -8.2706, lng: -35.944 },
   },
 ]
 
@@ -51,11 +51,11 @@ export const DESTINOS = {
     d('Refinaria Abreu e Lima — Almoxarifado', '33000167000101', 'Rod. PE-60, km 10 · Ipojuca', 'ipojuca-pe', -8.3837, -34.9997),
     d('Polo Cabo — Galpão 4', '41222333000110', 'Rod. BR-101 Sul · Cabo de Santo Agostinho', 'cabo-pe', -8.2822, -35.0322),
   ],
-  sp: [
-    d('Loja Pinheiros Eletro', '55444333000122', 'Rua dos Pinheiros, 800 · Pinheiros, São Paulo', 'saopaulo-sp', -23.5653, -46.6854),
-    d('Escritório Faria Lima — Recepção', '66555444000133', 'Av. Brig. Faria Lima, 3000 · Itaim Bibi, São Paulo', 'saopaulo-sp', -23.5806, -46.6853),
-    d('Clínica Vila Mariana', '77666555000144', 'Rua Domingos de Morais · Vila Mariana, São Paulo', 'saopaulo-sp', -23.5878, -46.6377),
-    d('Mercado Lapa', '88777666000155', 'Rua Clélia · Lapa, São Paulo', 'saopaulo-sp', -23.5233, -46.7046),
+  agreste: [
+    d('Shopping Difusora — Doca', '55444333000122', 'Av. Agamenon Magalhães, 444 · Maurício de Nassau, Caruaru', 'caruaru-pe', -8.2833, -35.9706),
+    d('Polo Comercial — Galpão 7', '66555444000133', 'BR-104, km 62 · Caruaru', 'caruaru-pe', -8.2465, -35.9645),
+    d('Hospital Mestre Vitalino', '77666555000144', 'BR-104 · Caruaru', 'caruaru-pe', -8.2539, -35.9628),
+    d('Feira de Caruaru — Box 210', '88777666000155', 'Parque 18 de Maio · Centro, Caruaru', 'caruaru-pe', -8.2827, -35.9739),
   ],
 }
 
@@ -70,7 +70,7 @@ export const ATIVOS = [
   { id: 'VEI-0009', nome: 'Furgão', tipo: 'Veículo', identificacao: 'GPS', valor: 76000, de: 'Ana Paula Lima' },
   { id: 'VEI-0007', nome: 'Caminhão', tipo: 'Veículo', identificacao: 'GPS', valor: 310000, de: 'Rafael Toscano' },
   { id: 'VEI-0005', nome: 'Van de entrega', tipo: 'Veículo', identificacao: 'QR', valor: 92000, de: 'Jonas Ferreira' },
-  { id: 'VEI-0104', nome: 'Van de entrega', tipo: 'Veículo', identificacao: 'QR', valor: 95000, de: 'Bruno Carvalho', base: 'sp' },
+  { id: 'VEI-0104', nome: 'Van de entrega', tipo: 'Veículo', identificacao: 'QR', valor: 95000, de: 'Bruno Carvalho', base: 'agreste' },
   { id: 'ATV-00412', nome: 'Gerador de energia', tipo: 'Equipamento', identificacao: 'QR', valor: 38900, uso: 'eventual' },
   { id: 'EQP-2203', nome: 'Andaime', tipo: 'Equipamento', identificacao: 'QR', valor: 12500, uso: 'locado' },
   { id: 'EQP-3101', nome: 'Empilhadeira', tipo: 'Equipamento', identificacao: 'RFID', valor: 145000, uso: 'diario-curto' },

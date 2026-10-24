@@ -86,6 +86,19 @@ describe('autenticação', () => {
   test('rota protegida sem token responde 401', async () => {
     assert.equal((await req('/entregas')).status, 401)
   })
+
+  test('tempo real usa ingresso de uso único, nunca o token na URL', async () => {
+    const token = await login('cliente', 'jhonata@email.com')
+    assert.equal((await req(`/entregas?token=${token}`)).status, 401) // token na URL não vale mais
+    assert.equal((await req('/eventos?ingresso=inventado')).status, 401)
+    const { ingresso } = (await req('/eventos/ingresso', { method: 'POST', token })).dados
+    const ctrl = new AbortController()
+    const res = await fetch(`${BASE}/eventos?ingresso=${ingresso}`, { signal: ctrl.signal })
+    assert.equal(res.status, 200)
+    assert.match(res.headers.get('content-type'), /event-stream/)
+    ctrl.abort()
+    assert.equal((await req(`/eventos?ingresso=${ingresso}`)).status, 401) // já usado
+  })
 })
 
 describe('separação por empresa (CNPJ)', () => {
@@ -189,5 +202,10 @@ describe('integrações', () => {
     const ativo = (await req('/ativos/EQP-2203', { token })).dados
     assert.equal(ativo.lat, -8.06)
     assert.equal(ativo.bateria, 80)
+
+    // sem SMTP no ambiente de teste, o e-mail de teste fica registrado na caixa de saída
+    const email = await req('/empresa/email/teste', { method: 'POST', token, body: { para: 'teste@exemplo.com' } })
+    assert.equal(email.status, 200)
+    assert.equal(email.dados.status, 'nao_configurado')
   })
 })

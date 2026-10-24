@@ -47,7 +47,7 @@ Cada empresa é identificada pelo **CNPJ** (com validação dos dígitos verific
 
 ### Tudo em tempo real e com dados reais
 
-- **Tempo real:** o servidor avisa o navegador por **Server-Sent Events** (`/api/eventos`) quando algo muda e a tela busca só o que mudou. Se a conexão cair, há uma busca de segurança a cada 60 s.
+- **Tempo real:** o servidor avisa o navegador por **Server-Sent Events** (`/api/eventos`) quando algo muda e a tela busca só o que mudou. Se a conexão cair, há uma busca de segurança a cada 60 s. Como o `EventSource` não envia cabeçalhos, a conexão usa um **ingresso de uso único válido por 60 s** (`POST /api/eventos/ingresso`): o token de login nunca vai na URL nem aparece em logs.
 - **GPS:** o app do entregador usa a localização do aparelho (`navigator.geolocation`) e envia a posição para a API. O mapa ao vivo, o ETA do cliente e as regras de alerta usam essas posições.
 - **Rastreadores:** veículos e equipamentos podem ter um rastreador (ou celular dedicado) que envia a posição com um token próprio.
 - **QR e RFID:** as etiquetas têm QR Code real; a tela **Escanear** lê pela câmera (BarcodeDetector ou jsQR) e aceita leitores RFID/NFC/código de barras USB ou Bluetooth (modo teclado).
@@ -138,7 +138,7 @@ Ao criar uma entrega, o sistema cria um ativo da categoria **Carga** (`CRG-…`)
 |---|---|---|
 | `POST /api/auth/login` · `POST /api/auth/cadastro` · `GET /api/auth/convite/:token` | Entrar, criar conta, dados do convite | público |
 | `GET /api/rastreio` · `GET /api/rastreio/acompanhamento` · `POST /api/rastreio/avisos` | Rastreio sem login (código + CPF/CNPJ), mapa/ETA, avisos por e-mail | público |
-| `GET /api/eventos?token=` | Fluxo de tempo real (SSE) | logado |
+| `POST /api/eventos/ingresso` · `GET /api/eventos?ingresso=` | Ingresso de uso único (60 s) e fluxo de tempo real (SSE) | logado |
 | `GET/POST /api/entregas` · `POST /api/entregas/importar` | Listar, criar, importar CSV | por perfil / admin |
 | `PATCH /api/entregas/:id/status` · `POST /api/entregas/:id/comprovante` | Status e comprovante (aceita registros feitos offline) | admin ou entregador designado |
 | `GET /api/entregas/:id/acompanhamento` | Posição do entregador, ETA e trajeto | dono, admin, entregador |
@@ -202,6 +202,7 @@ O menu é do tipo **hambúrguer** (☰) em todas as larguras: fica escondido e a
 rota-plus/
 ├── public/sw.js                 # service worker (push)
 ├── tests/api.test.js            # testes de integração da API (npm test)
+├── tests/e2e/                   # testes de tela no navegador (npm run test:e2e)
 ├── server/
 │   ├── index.js                 # Express: API, limite de tentativas e o site compilado
 │   ├── db.js · schema.sql       # SQLite e tabelas
@@ -244,6 +245,7 @@ Abra **http://localhost:5173** (a API fica na porta **3001**). Na primeira execu
 | `npm run build` e `npm start` | Produção: um servidor só em **http://localhost:3001** com site + API |
 | `npm run db:reset` | Recria o banco com os dados de demonstração |
 | `npm test` | Testes de integração da API (banco temporário) |
+| `npm run test:e2e` | Testes de tela num navegador de verdade (Playwright): cliente, administrador, entregador no celular e rastreio público. Na 1ª vez rode `npx playwright install chromium` |
 | `npm run lint` | oxlint |
 
 ### Variáveis de ambiente (opcionais)
@@ -253,7 +255,7 @@ Abra **http://localhost:5173** (a API fica na porta **3001**). Na primeira execu
 | `PORT` | Porta da API (padrão 3001) |
 | `APP_URL` | Endereço público do site, usado nos links de e-mail e convites |
 | `DB_PATH` | Caminho do arquivo SQLite |
-| `SMTP_HOST` · `SMTP_PORT` · `SMTP_USER` · `SMTP_PASS` · `SMTP_FROM` | Envio de e-mails. Sem elas, as mensagens ficam só registradas na caixa de saída |
+| `SMTP_HOST` · `SMTP_PORT` · `SMTP_USER` · `SMTP_PASS` · `SMTP_FROM` | Envio de e-mails (ex.: Brevo `smtp-relay.brevo.com:587`, Gmail `smtp.gmail.com:465` com senha de app). Sem elas, as mensagens ficam só registradas na caixa de saída. Confira em **Configurações › Integrações › Enviar teste** |
 | `VAPID_PUBLIC_KEY` · `VAPID_PRIVATE_KEY` · `VAPID_SUBJECT` | Chaves do push. Sem elas, o servidor gera e guarda um par no banco |
 | `OSRM_URL` / `OSRM=off` | Servidor de rotas (padrão: OSRM público) / usar só o cálculo local |
 | `NOMINATIM_URL` / `GEOCODER=off` | Servidor de endereços / não consultar a internet (usa o centro da cidade) |

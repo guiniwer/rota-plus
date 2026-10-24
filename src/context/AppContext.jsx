@@ -108,22 +108,44 @@ export function AppProvider({ children }) {
         c[recurso]().catch(() => {})
       }, 300))
     }
-    const fonte = new EventSource(urlEventos())
-    fonte.onopen = () => setTempoReal(true)
-    fonte.onerror = () => setTempoReal(false)
-    fonte.onmessage = (ev) => {
-      const msg = JSON.parse(ev.data)
-      msg.recursos.forEach(recarregar)
-      ouvintes.current.forEach((fn) => fn(msg.recursos))
+    // cada (re)conexão usa um ingresso novo; se a conexão cair, tenta de novo em 5 s
+    let fonte = null
+    let religar = null
+    let ativo = true
+    const conectar = async () => {
+      let url
+      try {
+        url = await urlEventos()
+      } catch (err) {
+        if (err.status === 401) return sair()
+        if (ativo) religar = setTimeout(conectar, 5000)
+        return
+      }
+      if (!ativo) return
+      fonte = new EventSource(url)
+      fonte.onopen = () => setTempoReal(true)
+      fonte.onerror = () => {
+        setTempoReal(false)
+        fonte.close()
+        if (ativo) religar = setTimeout(conectar, 5000)
+      }
+      fonte.onmessage = (ev) => {
+        const msg = JSON.parse(ev.data)
+        msg.recursos.forEach(recarregar)
+        ouvintes.current.forEach((fn) => fn(msg.recursos))
+      }
     }
+    conectar()
     const reserva = setInterval(() => Object.keys(c).forEach(recarregar), RESERVA_A_CADA)
     return () => {
-      fonte.close()
+      ativo = false
+      fonte?.close()
+      clearTimeout(religar)
       clearInterval(reserva)
       pendentes.forEach((t) => clearTimeout(t))
       setTempoReal(false)
     }
-  }, [usuario, carregadores])
+  }, [usuario, carregadores, sair])
 
   /** Permite que uma tela reaja a eventos (ex.: "posicoes", "mensagens:RT-123"). */
   const ouvir = useCallback((fn) => {

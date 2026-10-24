@@ -220,8 +220,8 @@ export function seed(db) {
     { id: 'RT-90931', entregador: null, ...D['Porto de Suape — Pátio B'], tipoCarga: 'Contêiner 20 pés', peso: 1800, prazo: em(240),
       eventos: [['confirmado', em(-180)]] },
     { id: 'RT-90827-BR', entregador: 'Bruno Carvalho', clienteId, cliente: CLIENTE_DEMO.nome, documento: digitos(CLIENTE_DEMO.documento), remetente: 'Lojas Americanas S.A.', destinatario: 'Maria Silva',
-      telefone: '(11) 98765-4321', origem: 'Rua da Aurora, 100 — Recife/PE', origemPos: { lat: -8.0597, lng: -34.8798 }, destino: 'Av. Paulista, 1000 — São Paulo/SP', cidade: 'saopaulo-sp',
-      lat: -23.5614, lng: -46.6559, tipoCarga: 'Caixa · eletrônico', peso: 3.15, modalidade: 'expressa', valor: 140.77, valorNF: 4500, prazo: em(150), janela: null,
+      telefone: '(81) 98765-4321', origem: 'Rua da Aurora, 100 — Recife/PE', origemPos: { lat: -8.0597, lng: -34.8798 }, destino: 'Rua Vigário Freire, 210 — Caruaru/PE', cidade: 'caruaru-pe',
+      lat: -8.2852, lng: -35.9757, tipoCarga: 'Caixa · eletrônico', peso: 3.15, modalidade: 'expressa', valor: 58.4, valorNF: 4500, prazo: em(150), janela: null,
       eventos: [['confirmado', em(-2 * 1440)], ['coletado', em(-2 * 1440 + 200)], ['transito', em(-1440)], ['saiu', em(-60)]] },
   ]
   for (const h of hojeLista) {
@@ -269,10 +269,10 @@ export function seed(db) {
   const insAtivo = db.prepare(`INSERT INTO ativos (id, empresa_id, nome, tipo, identificacao, dispositivo_token, bateria, responsavel, responsavel_id, local, lat, lng, ultima_leitura_em, status, valor, criado_em)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
   const insMov = db.prepare('INSERT INTO ativo_movimentacoes (ativo_id, tipo, responsavel, responsavel_id, local, lat, lng, via, criado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-  const BASE_SP = ENTREGADORES.find((e) => e.base).base
+  const BASE_AGRESTE = ENTREGADORES.find((e) => e.base).base
   for (const a of ATIVOS) {
     const dono = a.de ? ent[a.de] : null
-    const base = a.base === 'sp' ? { nome: BASE_SP.nome, ...BASE_SP } : { nome: 'CD Recife', lat: EMPRESA.lat, lng: EMPRESA.lng }
+    const base = a.base === 'agreste' ? { nome: BASE_AGRESTE.nome, ...BASE_AGRESTE } : { nome: 'CD Recife', lat: EMPRESA.lat, lng: EMPRESA.lng }
     const via = a.identificacao === 'RFID' ? 'rfid' : 'qr'
     const movs = [] // [tipo, t, responsavel, local, pos]
     const periodo = (ini, fim, resp, local, pos) => {

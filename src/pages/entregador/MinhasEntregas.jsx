@@ -77,6 +77,7 @@ export default function MinhasEntregas() {
   const [ordemRota, setOrdemRota] = useState([])
   const [conversa, setConversa] = useState(null)
   const [enviando, setEnviando] = useState(false)
+  const [hoje] = useState(() => new Date().toDateString())
 
   const precisaTermo = empresa?.privacidade?.termoCiencia && !empresa?.termoAceitoEm
   const gps = useRastreamentoGps(empresa, { ativo: Boolean(empresa) && !precisaTermo })
@@ -93,7 +94,7 @@ export default function MinhasEntregas() {
   )
 
   const pendentes = entregas.filter((e) => !['entregue', 'cancelado'].includes(e.status))
-  const concluidasHoje = entregas.filter((e) => e.status === 'entregue' && new Date(e.entregueEm).toDateString() === new Date().toDateString())
+  const concluidasHoje = entregas.filter((e) => e.status === 'entregue' && new Date(e.entregueEm).toDateString() === hoje)
   const total = pendentes.length + concluidasHoje.length
   const posicao = (id) => (ordemRota.includes(id) ? ordemRota.indexOf(id) : Infinity)
   const paradas = [...pendentes].sort(
