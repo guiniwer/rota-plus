@@ -31,6 +31,8 @@ export default function MapaLeaflet({ marcadores = [], linhas = [], selecionadoI
   const mapaRef = useRef(null)
   const camadaRef = useRef(null)
   const ajustadoRef = useRef(null)
+  const enquadrarRef = useRef(null) // último enquadramento automático (refeito se o mapa mudar de tamanho)
+  const mexeuRef = useRef(false) // depois que a pessoa arrasta ou dá zoom, o mapa não se reenquadra sozinho
   const onSelRef = useRef(onSelecionar)
   useEffect(() => {
     onSelRef.current = onSelecionar
@@ -42,11 +44,19 @@ export default function MapaLeaflet({ marcadores = [], linhas = [], selecionadoI
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(mapa)
     camadaRef.current = L.layerGroup().addTo(mapa)
     mapaRef.current = mapa
-    // o mapa pode nascer dentro de um modal/aba ainda sem tamanho
-    const obs = new ResizeObserver(() => mapa.invalidateSize())
+    // o mapa pode nascer dentro de um modal/aba ainda sem tamanho final: ao redimensionar, refaz o enquadramento
+    const obs = new ResizeObserver(() => {
+      mapa.invalidateSize()
+      if (!mexeuRef.current) enquadrarRef.current?.()
+    })
     obs.observe(elRef.current)
+    const mexeu = () => (mexeuRef.current = true)
+    elRef.current.addEventListener('pointerdown', mexeu)
+    elRef.current.addEventListener('wheel', mexeu, { passive: true })
     return () => {
       obs.disconnect()
+      enquadrarRef.current = null
+      mapaRef.current = null
       mapa.remove()
     }
   }, [])
@@ -72,10 +82,14 @@ export default function MapaLeaflet({ marcadores = [], linhas = [], selecionadoI
     const pontos = [...validos.filter((m) => !m.foraDoEnquadramento).map((m) => [m.lat, m.lng]), ...linhas.filter((l) => !l.foraDoEnquadramento).flatMap((l) => l.pontos ?? [])]
     if (pontos.length && ajustadoRef.current !== chave) {
       ajustadoRef.current = chave
+      mexeuRef.current = false
+      enquadrarRef.current = () => {
+        if (pontos.length === 1) mapa.setView(pontos[0], 15, { animate: false })
+        // folga extra no alto para os selos sobrepostos (status, chegada estimada)
+        else mapa.fitBounds(L.latLngBounds(pontos), { paddingTopLeft: [40, 70], paddingBottomRight: [40, 30], maxZoom: 15, animate: false })
+      }
       mapa.invalidateSize() // o tamanho guardado pelo Leaflet pode estar velho (o mapa nasce antes do layout final)
-      if (pontos.length === 1) mapa.setView(pontos[0], 15)
-      // folga extra no alto para os selos sobrepostos (status, chegada estimada)
-      else mapa.fitBounds(L.latLngBounds(pontos), { paddingTopLeft: [40, 70], paddingBottomRight: [40, 30], maxZoom: 15 })
+      enquadrarRef.current()
     }
   }, [marcadores, linhas, selecionadoId, chaveAjuste])
 

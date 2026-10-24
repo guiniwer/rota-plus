@@ -87,7 +87,7 @@ export default function NovoPedido() {
     })
     if (!id) return
     toast(`Pedido ${id} criado!`)
-    navigate(`/cliente/status/${id}`)
+    navigate(`/cliente/pedidos/${id}`)
   }
 
   return (

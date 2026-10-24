@@ -128,7 +128,7 @@ export function seed(db) {
     )
     for (const [status, t, desc] of eventos) {
       const doEntregador = entregador && !['confirmado', 'cancelado'].includes(status)
-      const descricao = desc ?? { confirmado: 'Aguardando coleta na origem', coletado: 'Coleta na origem', transito: 'Carga em trânsito', saiu: 'A caminho do destinatário', cancelado: 'Cancelado a pedido do cliente' }[status]
+      const descricao = desc ?? { confirmado: 'Aguardando coleta na origem', coletado: 'Coleta na origem', transito: 'Carga em trânsito', saiu: 'A caminho do destinatário', entregue: 'Entregue no destino', cancelado: 'Cancelado a pedido do cliente' }[status]
       const pos = status === 'entregue' ? { lat: e.lat, lng: e.lng } : { lat: null, lng: null }
       insEvento.run(e.id, status, STATUS_ENTREGA[status].label, doEntregador ? `${descricao} · por ${entregador.nome}` : descricao, pos.lat, pos.lng, doEntregador ? entregador.id : null, iso(t))
     }
@@ -261,7 +261,7 @@ export function seed(db) {
     for (const [status, t] of p.eventos) {
       if (!textos[status]) continue
       insNotif.run(clienteId, status === 'entregue' ? 'box' : status === 'cancelado' ? 'alert' : 'truck', status === 'entregue' ? 'var(--green)' : 'var(--pink)',
-        STATUS_ENTREGA[status].label, `Seu pedido ${p.id} ${textos[status]}.`, `/cliente/status/${p.id}`, iso(t), agoraMs - t > 2 * HORA ? 1 : 0)
+        STATUS_ENTREGA[status].label, `Seu pedido ${p.id} ${textos[status]}.`, `/cliente/pedidos/${p.id}`, iso(t), agoraMs - t > 2 * HORA ? 1 : 0)
     }
   }
 

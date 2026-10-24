@@ -34,7 +34,7 @@ O **Rota+** é uma aplicação web responsiva, multiempresa, com quatro frentes:
 | Frente | Para quem | O que resolve |
 |---|---|---|
 | **Site público** | Qualquer pessoa | Apresentação, cotação de frete, mapa das transportadoras e **rastreio sem login** (código + CPF/CNPJ), com mapa e previsão de chegada |
-| **Área do cliente** | Quem envia ou recebe | Pedido com escolha da transportadora e frete calculado no servidor, entregador no mapa com ETA real, conversa com o entregador, reagendamento, recado, comprovante (foto + assinatura), etiqueta com QR, notificações push e por e-mail, avaliação |
+| **Área do cliente** | Quem envia ou recebe | Menu enxuto (Início, Meus pedidos, Meu perfil). Uma página por pedido com tudo junto. Pedido com escolha da transportadora e frete calculado no servidor, entregador no mapa com ETA real, conversa com o entregador, reagendamento, recado, comprovante (foto + assinatura), etiqueta com QR, notificações push e por e-mail, avaliação |
 | **Visão operacional** | Administrador da empresa | Painel, entregas (criação, importação CSV, atribuição, aviso por e-mail/WhatsApp), ativos (QR/RFID/GPS, etiquetas para impressão, rastreador), mapa ao vivo, central de alertas automática, equipes (convites, adesão, rota de cada entregador), relatórios e configurações (expediente, LGPD, API, webhook, caixa de saída) |
 | **App do entregador** | Entregador da empresa | Só as entregas dele, na ordem da **rota otimizada**, GPS do aparelho, um botão por etapa, comprovante com foto, assinatura e localização, **fila offline** que envia sozinha ao reconectar |
 
@@ -265,7 +265,7 @@ A empresa de demonstração vem com 30 dias de operação gerados com datas rela
 
 ### Roteiro sugerido para avaliação
 
-1. **Cliente:** faça um *Novo pedido* escolhendo a transportadora; veja o pedido em *Status* (etiqueta com QR) e *Acompanhar*.
+1. **Cliente:** faça um *Novo pedido* escolhendo a transportadora; ele abre na página do pedido, que reúne mapa, chegada estimada, entregador, etiqueta com QR e avaliação. O menu do cliente tem só **Início**, **Meus pedidos** e **Meu perfil**.
 2. **Administrador:** o pedido aparece na hora em *Entregas* e em *Ativos › Carga*. Atribua ao **Thiago Rodrigues**. Veja *Relatórios* e o *Painel* com os indicadores dos últimos dias.
 3. Em outro navegador, entre como **entregador** e permita a localização: a posição aparece no *Mapa ao vivo* do administrador e o cliente passa a ver o ETA. Avance as etapas e registre a entrega com foto e assinatura. Desligue a internet do aparelho para ver a fila offline.
 4. Em **Ativos**, imprima as etiquetas e leia uma pela câmera em **Escanear** para fazer check-out/check-in.

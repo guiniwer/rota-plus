@@ -9,14 +9,12 @@ import Landing from './pages/publico/Landing'
 import Login from './pages/publico/Login'
 import RastreioPublico from './pages/publico/RastreioPublico'
 
-import Acompanhar from './pages/cliente/Acompanhar'
-import AvaliarEntrega from './pages/cliente/AvaliarEntrega'
 import ClienteInicio from './pages/cliente/ClienteInicio'
-import Historico from './pages/cliente/Historico'
 import Notificacoes from './pages/cliente/Notificacoes'
 import NovoPedido from './pages/cliente/NovoPedido'
-import Previsao from './pages/cliente/Previsao'
-import StatusEncomenda from './pages/cliente/StatusEncomenda'
+import Pedido from './pages/cliente/Pedido'
+import Pedidos from './pages/cliente/Pedidos'
+import RedirecionarPedido from './pages/cliente/RedirecionarPedido'
 
 import Perfil from './pages/comum/Perfil'
 import MinhasEntregas from './pages/entregador/MinhasEntregas'
@@ -48,12 +46,15 @@ export default function App() {
           <Route path="/cliente" element={<AppLayout perfil="cliente" />}>
             <Route index element={<ClienteInicio />} />
             <Route path="novo-pedido" element={<NovoPedido />} />
-            <Route path="acompanhar/:id?" element={<Acompanhar />} />
-            <Route path="status/:id?" element={<StatusEncomenda />} />
-            <Route path="previsao/:id?" element={<Previsao />} />
-            <Route path="historico" element={<Historico />} />
+            <Route path="pedidos" element={<Pedidos />} />
+            <Route path="pedidos/:id" element={<Pedido />} />
             <Route path="notificacoes" element={<Notificacoes />} />
-            <Route path="avaliar/:id?" element={<AvaliarEntrega />} />
+            {/* endereços antigos (notificações e e-mails já enviados) levam à página do pedido */}
+            <Route path="acompanhar/:id?" element={<RedirecionarPedido />} />
+            <Route path="status/:id?" element={<RedirecionarPedido />} />
+            <Route path="previsao/:id?" element={<RedirecionarPedido />} />
+            <Route path="historico" element={<RedirecionarPedido />} />
+            <Route path="avaliar/:id?" element={<RedirecionarPedido avaliar />} />
             <Route path="perfil" element={<Perfil />} />
           </Route>
 

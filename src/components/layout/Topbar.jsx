@@ -24,7 +24,7 @@ export default function Topbar({ title, subtitle, actions }) {
     const ativo = ativos.find((x) => x.id.toUpperCase().includes(q) || x.nome.toUpperCase().includes(q))
     if (perfil === 'empresa' && ativo) navigate(`/empresa/ativos/${ativo.id}`)
     else if (perfil === 'empresa' && entrega) navigate(`/empresa/entregas?q=${entrega.id}`)
-    else if (perfil === 'cliente' && entrega && entrega.cliente === usuario?.nome) navigate(`/cliente/status/${entrega.id}`)
+    else if (perfil === 'cliente' && entrega && entrega.cliente === usuario?.nome) navigate(`/cliente/pedidos/${entrega.id}`)
     else if (perfil === 'entregador' && entrega) navigate(`/entregador?registrar=${entrega.id}`)
     else toast(`Nada encontrado para "${busca}".`)
     setBusca('')

@@ -274,7 +274,7 @@ router.post('/:id/mensagens', carregar, (req, res) => {
   const papel = u.perfil === 'cliente' ? 'cliente' : u.funcao
   db.prepare('INSERT INTO entrega_mensagens (entrega_id, autor_id, autor_nome, autor_papel, texto, criado_em) VALUES (?, ?, ?, ?, ?, ?)').run(e.id, u.id, u.nome, papel, texto, agora())
   // avisa a outra ponta da conversa
-  const link = (para) => (para === e.usuario_id ? `/cliente/acompanhar/${e.id}` : '/entregador')
+  const link = (para) => (para === e.usuario_id ? `/cliente/pedidos/${e.id}` : '/entregador')
   for (const para of [e.usuario_id, e.entregador_id].filter((x) => x && x !== u.id)) notificar(para, { icon: 'send', titulo: `Mensagem de ${u.nome} · ${e.id}`, texto, link: link(para) })
   publicar({ empresaId: e.empresa_id, usuarios: [e.usuario_id, e.entregador_id].filter(Boolean), recursos: [`mensagens:${e.id}`] })
   res.status(201).json({ ok: true })
@@ -294,7 +294,7 @@ router.post('/:id/aviso', exigirFuncao('admin'), carregar, async (req, res) => {
   }
   const para = e.email_destinatario || cliente?.email
   if (!para) return res.status(400).json({ erro: 'Esta entrega não tem e-mail do destinatário.' })
-  if (e.usuario_id) notificar(e.usuario_id, { icon: 'send', titulo: `Mensagem da transportadora · ${e.id}`, texto: mensagem, link: `/cliente/status/${e.id}` })
+  if (e.usuario_id) notificar(e.usuario_id, { icon: 'send', titulo: `Mensagem da transportadora · ${e.id}`, texto: mensagem, link: `/cliente/pedidos/${e.id}` })
   const r = await enviarEmail({ empresaId: e.empresa_id, entregaId: e.id, para, assunto: `Sua entrega ${e.id}`, texto: mensagem })
   res.json({ status: r.status, para })
 })

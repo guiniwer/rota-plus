@@ -1,15 +1,11 @@
 // Itens de navegação por perfil. "mobile: true" aparece na barra inferior do celular.
 export const NAV = {
   cliente: [
+    // enxuto: o pedido concentra mapa, chegada, ações e avaliação; as notificações ficam no sino do topo
     { to: '/cliente', icon: 'home', label: 'Início', end: true, mobile: true },
+    { to: '/cliente/pedidos', icon: 'box', label: 'Meus pedidos', curto: 'Pedidos', mobile: true },
     { to: '/cliente/novo-pedido', icon: 'plus', label: 'Novo pedido', fab: true },
-    { to: '/cliente/acompanhar', icon: 'truck', label: 'Acompanhar entrega' },
-    { to: '/cliente/status', icon: 'box', label: 'Status da encomenda' },
-    { to: '/cliente/previsao', icon: 'clock', label: 'Previsão de chegada' },
-    { to: '/cliente/historico', icon: 'list', label: 'Histórico', mobile: true },
-    { to: '/cliente/notificacoes', icon: 'bell', label: 'Notificações', mobile: true, badge: 'notificacoes' },
-    { to: '/cliente/avaliar', icon: 'star', label: 'Avaliar entrega' },
-    { to: '/cliente/perfil', icon: 'user', label: 'Meu perfil' },
+    { to: '/cliente/perfil', icon: 'user', label: 'Meu perfil', curto: 'Perfil', mobile: true },
   ],
   empresa: [
     { to: '/empresa', icon: 'grid', label: 'Painel da operação', end: true, mobile: true },

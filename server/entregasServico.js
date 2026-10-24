@@ -63,7 +63,7 @@ export function avisarCliente(e, tipo, { titulo, texto, icon = 'truck', cor = 'v
   if (e.usuario_id) {
     const prefs = lerPreferencias(e.usuario_id)
     const quer = !preferencia || prefs[preferencia] !== false
-    notificar(e.usuario_id, { icon, cor, titulo, texto, link: `/cliente/status/${e.id}` }, { push: quer && prefs.push !== false })
+    notificar(e.usuario_id, { icon, cor, titulo, texto, link: `/cliente/pedidos/${e.id}` }, { push: quer && prefs.push !== false })
     if (quer && prefs.email) {
       const u = db.prepare('SELECT email FROM usuarios WHERE id = ?').get(e.usuario_id)
       enviarEmail({ empresaId: e.empresa_id, entregaId: e.id, para: u?.email, assunto: `${titulo} · ${e.id}`, texto: `${texto}\n\nAcompanhe: ${link}` })
@@ -188,7 +188,7 @@ export async function criarEntrega(empresa, d, { cliente = null, autor = null, g
     criarAtivoDaEntrega(db, db.prepare('SELECT * FROM entregas WHERE id = ?').get(id), quando)
   })
   const row = db.prepare('SELECT * FROM entregas WHERE id = ?').get(id)
-  if (cliente) notificar(cliente.id, { icon: 'check', cor: 'var(--green)', titulo: 'Pedido confirmado', texto: `Seu pedido ${id} foi registrado com ${empresa.fantasia || empresa.razao_social}.`, link: `/cliente/status/${id}` })
+  if (cliente) notificar(cliente.id, { icon: 'check', cor: 'var(--green)', titulo: 'Pedido confirmado', texto: `Seu pedido ${id} foi registrado com ${empresa.fantasia || empresa.razao_social}.`, link: `/cliente/pedidos/${id}` })
   if (entregador) notificar(entregador.id, { icon: 'route', titulo: 'Nova entrega na sua rota', texto: `${row.cliente} — ${row.destino}`, link: '/entregador' })
   const json = buscarEntrega(id)
   dispararWebhook(empresa, 'entrega.criada', json).catch(() => {})
