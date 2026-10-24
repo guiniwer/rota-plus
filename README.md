@@ -266,6 +266,18 @@ Abra **http://localhost:5173** (a API fica na porta **3001**). Na primeira execu
 
 > Câmera, GPS e push só funcionam em **HTTPS** ou em `localhost`. Para usar no celular, publique o site com HTTPS.
 
+### Publicar online (HTTPS)
+
+O app é um único processo Node (API + front-end compilado) com um arquivo SQLite, então roda em qualquer serviço que aceite Node 22.13+ ou Docker.
+
+**Render (recomendado, tem plano grátis):** em [dashboard.render.com](https://dashboard.render.com) → **New + → Blueprint** → escolha este repositório. O `render.yaml` já configura build, start, health check e as variáveis. O endereço sai como `https://rota-plus.onrender.com` (ou parecido), com HTTPS, e cada `git push` publica de novo.
+
+- No plano **free** o servidor dorme após 15 min sem acesso (o primeiro acesso leva cerca de 50 s) e o banco volta à demonstração quando reinicia. Abra o link um minuto antes de apresentar.
+- Para guardar dados de verdade, use o plano **starter** e descomente o bloco `disk` do `render.yaml` (banco em `/var/data`).
+- E-mail: preencha `SMTP_*` em **Environment** no painel e use **Configurações › Integrações › Enviar teste**.
+
+**Docker (Fly.io, Railway, VPS):** `docker build -t rota-plus .` e `docker run -p 3001:3001 -v rota-dados:/data rota-plus`. O banco fica no volume `/data`. Ponha um proxy com HTTPS na frente (o serviço de hospedagem costuma fazer isso) e defina `APP_URL`.
+
 ### Contas de demonstração
 
 | Perfil | Como entrar |

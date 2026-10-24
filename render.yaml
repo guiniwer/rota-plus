@@ -1,0 +1,38 @@
+# Publicação no Render (https://render.com): New + → Blueprint → escolha este repositório.
+# O Render dá HTTPS e um endereço *.onrender.com automaticamente.
+#
+# Plano free: o servidor "dorme" após 15 min sem acesso (o 1º acesso leva ~50 s) e o disco não é
+# persistente — ao reiniciar, o banco volta aos dados de demonstração. Para guardar os dados de verdade,
+# use o plano starter e descomente o bloco "disk" (o banco fica em /var/data).
+services:
+  - type: web
+    name: rota-plus
+    runtime: node
+    plan: free
+    region: virginia
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 24.11.0
+      - key: TRUST_PROXY
+        value: 'true'
+      - key: DB_PATH
+        value: /tmp/rota.db # com disco: /var/data/rota.db
+      # e-mail (opcional): preencha no painel do Render
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+    # disk:
+    #   name: dados
+    #   mountPath: /var/data
+    #   sizeGB: 1

@@ -27,7 +27,8 @@ export function verificarEmail() {
     .then(() => console.log(`[email] SMTP pronto (${process.env.SMTP_HOST}).`))
     .catch((err) => console.warn('[email] SMTP configurado, mas a conexão falhou:', err.message))
 }
-export const URL_APP = process.env.APP_URL ?? 'http://localhost:5173'
+// endereço público do app nos links de e-mail (o Render informa o seu em RENDER_EXTERNAL_URL)
+export const URL_APP = process.env.APP_URL ?? process.env.RENDER_EXTERNAL_URL ?? 'http://localhost:5173'
 
 const registrar = (m) =>
   Number(
