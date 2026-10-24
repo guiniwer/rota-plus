@@ -16,7 +16,7 @@ const minutos = (m) => (m >= 60 ? `${Math.floor(m / 60)} h ${Math.round(m % 60)}
  *  - entregadorId: obrigatório para o administrador; o entregador usa a própria rota
  *  - chave: muda quando as paradas mudam (refaz o cálculo)
  *  - onRota(rota): avisa a ordem calculada (ex.: para ordenar a lista de paradas)
- *  - compacto: esconde a lista de paradas (só mapa e resumo)
+ *  - compacto: versão do app do entregador — só o mapa e o botão do Google Maps (sem indicadores nem lista)
  */
 export default function RotaOtimizada({ entregadorId, chave, onRota, compacto = false }) {
   const { otimizarRota } = useApp()
@@ -51,7 +51,7 @@ export default function RotaOtimizada({ entregadorId, chave, onRota, compacto = 
 
   return (
     <Card
-      title="Rota otimizada"
+      title={compacto ? 'Mapa da rota' : 'Rota otimizada'}
       action={
         <Button variant="secondary" size="sm" icon="refresh" onClick={calcular} disabled={calculando}>
           {calculando ? 'Calculando…' : 'Recalcular'}
@@ -64,6 +64,7 @@ export default function RotaOtimizada({ entregadorId, chave, onRota, compacto = 
         <p className="muted">Nenhuma entrega pendente com endereço localizado.</p>
       ) : (
         <>
+          {!compacto && (
           <div className="rota-kpis">
             <div>
               <span className="label">Distância</span>
@@ -78,7 +79,9 @@ export default function RotaOtimizada({ entregadorId, chave, onRota, compacto = 
               <strong className="green">{rota.economiaKm >= 0.1 ? `− ${km(rota.economiaKm)}` : '—'}</strong>
             </div>
           </div>
-          <Mapa marcadores={marcadores} linhas={linhas} chaveAjuste={rota.paradas.map((p) => p.id).join(',')} height={compacto ? 260 : 300} rotulo="Mapa da rota otimizada" />
+          )}
+          <Mapa marcadores={marcadores} linhas={linhas} chaveAjuste={rota.paradas.map((p) => p.id).join(',')} height={compacto ? 220 : 300} rotulo="Mapa da rota otimizada" />
+          {!compacto && (
           <div className="row-between wrap small">
             <span className="muted">
               Saída: {rota.base.atual ? 'sua posição atual (GPS)' : rota.base.nome} ·{' '}
@@ -86,6 +89,7 @@ export default function RotaOtimizada({ entregadorId, chave, onRota, compacto = 
             </span>
             <Badge tone={rota.fonte === 'osrm' ? 'success' : 'warning'}>{rota.fonte === 'osrm' ? 'OSRM' : 'Offline'}</Badge>
           </div>
+          )}
           {!compacto && (
             <ol className="rota-lista">
               {rota.paradas.map((p, i) => (

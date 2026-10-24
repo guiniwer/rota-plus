@@ -924,3 +924,48 @@ a.user-card.active {
   border-radius: 14px 14px 4px 14px;
   background: color-mix(in srgb, var(--pink) 22%, var(--card-2));
 }
+
+/* ---------- app do entregador ---------- */
+.ponto-status {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+.faixa-aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent);
+}
+.acoes-icone {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.acoes-icone .btn {
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 4px;
+  font-size: 12px;
+}
+.recolhivel summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  list-style: none;
+}
+.recolhivel summary::-webkit-details-marker {
+  display: none;
+}
+.recolhivel[open] summary {
+  margin-bottom: 4px;
+}

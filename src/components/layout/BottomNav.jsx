@@ -6,6 +6,8 @@ import { NAV } from './navItems'
 export default function BottomNav({ perfil, onOpenMenu }) {
   const items = NAV[perfil].filter((i) => i.mobile)
   const fab = NAV[perfil].find((i) => i.fab)
+  // perfis com só dois destinos (entregador) dispensam a barra: o perfil já está no avatar do topo
+  if (!fab && items.length <= 2) return null
   const left = items.slice(0, 2)
   const right = items.slice(2)
   // o botão "Menu" só aparece se houver itens que não cabem na barra

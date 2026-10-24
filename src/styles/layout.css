@@ -206,6 +206,11 @@
     width: 100%;
     margin-left: 0;
   }
+  /* só o avatar (app do entregador): fica na mesma linha do título */
+  .topbar-actions:not(:has(.icon-button, .btn, .select)) {
+    width: auto;
+    margin-left: auto;
+  }
   .topbar-actions .select {
     flex: 1;
     min-width: 0 !important;

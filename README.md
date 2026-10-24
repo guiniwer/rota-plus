@@ -36,7 +36,7 @@ O **Rota+** é uma aplicação web responsiva, multiempresa, com quatro frentes:
 | **Site público** | Qualquer pessoa | Apresentação, cotação de frete, mapa das transportadoras e **rastreio sem login** (código + CPF/CNPJ), com mapa e previsão de chegada |
 | **Área do cliente** | Quem envia ou recebe | Menu enxuto (Início, Meus pedidos, Meu perfil). Uma página por pedido com tudo junto. Pedido com escolha da transportadora e frete calculado no servidor, entregador no mapa com ETA real, conversa com o entregador, reagendamento, recado, comprovante (foto + assinatura), etiqueta com QR, notificações push e por e-mail, avaliação |
 | **Visão operacional** | Administrador da empresa | Menu com 7 áreas: **Painel** (indicadores, mapa ao vivo com tela cheia, alertas, prazos e gargalos), **Entregas** (criação, importação CSV, atribuição, aviso por e-mail/WhatsApp), **Ativos** (QR/RFID/GPS, escanear, etiquetas, rastreador), **Central de alertas**, **Equipes** (convites, adesão, rota de cada entregador), **Relatórios** e **Configurações** (Empresa, Privacidade/LGPD, Integrações com caixa de saída) |
-| **App do entregador** | Entregador da empresa | Só as entregas dele, na ordem da **rota otimizada**, GPS do aparelho, um botão por etapa, comprovante com foto, assinatura e localização, **fila offline** que envia sozinha ao reconectar |
+| **App do entregador** | Entregador da empresa | Feito para uma mão: a próxima parada e o botão principal aparecem sem rolar; **um toque por parada** na rua. Só as entregas dele, na ordem da **rota otimizada**, GPS do aparelho, um botão por etapa, comprovante com foto, assinatura e localização, **fila offline** que envia sozinha ao reconectar |
 
 ### Separação por empresa (CNPJ)
 
@@ -267,7 +267,7 @@ A empresa de demonstração vem com 30 dias de operação gerados com datas rela
 
 1. **Cliente:** faça um *Novo pedido* escolhendo a transportadora; ele abre na página do pedido, que reúne mapa, chegada estimada, entregador, etiqueta com QR e avaliação. O menu do cliente tem só **Início**, **Meus pedidos** e **Meu perfil**.
 2. **Administrador:** o pedido aparece na hora em *Entregas* e em *Ativos › Carga*. Atribua ao **Thiago Rodrigues**. Veja *Relatórios* e o *Painel* com os indicadores dos últimos dias.
-3. Em outro navegador, entre como **entregador** e permita a localização: a posição aparece no mapa ao vivo do *Painel* do administrador e o cliente passa a ver o ETA. Avance as etapas e registre a entrega com foto e assinatura. Desligue a internet do aparelho para ver a fila offline.
+3. Em outro navegador, entre como **entregador** e permita a localização: a posição aparece no mapa ao vivo do *Painel* do administrador e o cliente passa a ver o ETA. Toque em **Carregar e iniciar rota** (marca coleta e trânsito de todas as cargas e já sai para a primeira parada) e registre cada entrega com foto e assinatura: a parada seguinte passa sozinha para "saiu para entrega" e o cliente é avisado. Desligue a internet do aparelho para ver a fila offline.
 4. Em **Ativos**, imprima as etiquetas e leia uma pela câmera em **Ativos › Escanear** para fazer check-out/check-in.
 5. Na **Central de alertas**, acompanhe os alertas que o monitor abre (ex.: entrega com prazo vencido) e resolva um.
 6. Em **Equipes**, gere um convite e cadastre um entregador novo pelo link.
