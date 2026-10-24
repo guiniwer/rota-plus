@@ -28,7 +28,7 @@ export default function Sidebar({ perfil, open, onNavigate }) {
       </div>
       <p className="sidebar-section label">Menu</p>
       <nav className="stack-sm" style={{ gap: 4 }}>
-        {NAV[perfil].map((item) => (
+        {NAV[perfil].filter((item) => !item.soBarra).map((item) => (
           <NavLink
             key={item.to}
             to={item.to}

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import Page from '../../components/layout/Page'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
@@ -13,6 +13,7 @@ import SearchInput from '../../components/ui/SearchInput'
 import Segmented from '../../components/ui/Segmented'
 import Timeline from '../../components/ui/Timeline'
 import Comprovante from '../../components/entregas/Comprovante'
+import ImportarCsv from '../../components/entregas/ImportarCsv'
 import { EntregaBadge } from '../../components/entregas/StatusBadge'
 import { useApp } from '../../context/AppContext'
 import { OPCOES_CIDADES } from '../../data/cidades'
@@ -74,12 +75,11 @@ function Avisar({ entrega, onFechar }) {
 
 export default function Entregas() {
   const { entregas, entregadores, empresa, atribuirEntrega, atualizarStatusEntrega, criarPedido, toast } = useApp()
-  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const [aba, setAba] = useState('todas')
   const [busca, setBusca] = useState(params.get('q') ?? '')
   const [limite, setLimite] = useState(POR_PAGINA)
-  const [modal, setModal] = useState(null) // 'nova' | 'aviso' | 'comprovante'
+  const [modal, setModal] = useState(() => (params.get('importar') ? 'importar' : null)) // 'nova' | 'importar' | 'aviso' | 'comprovante'
   const [nova, setNova] = useState(NOVA)
   const opcoesEntregador = [{ value: '', label: 'Não atribuído' }, ...entregadores.map((p) => ({ value: String(p.id), label: p.nome }))]
   const selecionadaId = params.get('q')
@@ -133,7 +133,7 @@ export default function Entregas() {
       subtitle="Gerencie, atribua e acompanhe todas as entregas da empresa"
       actions={
         <>
-          <Button variant="secondary" icon="upload" onClick={() => navigate('/empresa/configuracoes?aba=importar')}>
+          <Button variant="secondary" icon="upload" onClick={() => setModal('importar')}>
             Importar CSV
           </Button>
           <Button icon="plus" onClick={() => setModal('nova')}>
@@ -221,6 +221,9 @@ export default function Entregas() {
         )}
       </div>
 
+      <Modal title="Importar entregas de planilha (CSV)" open={modal === 'importar'} onClose={() => setModal(null)} wide>
+        {modal === 'importar' && <ImportarCsv />}
+      </Modal>
       <Modal title="Nova entrega" open={modal === 'nova'} onClose={() => setModal(null)}>
         <form className="stack-sm" style={{ gap: 16 }} onSubmit={criar}>
           <Field label="Cliente / destinatário" value={nova.cliente} onChange={set('cliente')} required />

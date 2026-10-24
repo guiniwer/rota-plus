@@ -68,7 +68,10 @@ export default function Ativos() {
       subtitle="Veículos, equipamentos, ferramentas e todas as cargas das entregas"
       actions={
         <>
-          <Button variant="secondary" icon="qr" onClick={() => setEtiquetas(true)}>
+          <Button variant="secondary" icon="qr" onClick={() => navigate('/empresa/escanear')}>
+            Escanear
+          </Button>
+          <Button variant="secondary" icon="download" onClick={() => setEtiquetas(true)}>
             Imprimir etiquetas
           </Button>
           <Button icon="plus" onClick={() => setModal(true)}>

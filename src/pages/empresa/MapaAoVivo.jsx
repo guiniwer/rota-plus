@@ -37,7 +37,15 @@ export default function MapaAoVivo() {
   const alternar = (k) => (v) => setCamadas((c) => ({ ...c, [k]: v }))
 
   return (
-    <Page title="Mapa ao vivo" subtitle={`${marcadores.length} pontos no mapa · ${tempoReal ? 'tempo real' : 'reconectando…'}`}>
+    <Page
+      title="Mapa ao vivo"
+      subtitle={`${marcadores.length} pontos no mapa · ${tempoReal ? 'tempo real' : 'reconectando…'}`}
+      actions={
+        <Button variant="secondary" icon="grid" onClick={() => navigate('/empresa')}>
+          Voltar ao painel
+        </Button>
+      }
+    >
       <div className="grid-aside" style={{ gridTemplateColumns: 'minmax(0,1fr) 340px' }}>
         <Card compact>
           <Mapa marcadores={marcadores} linhas={linhas} selecionadoId={selecionadoId} onSelecionar={setSelecionadoId} height={620} rotulo="Mapa ao vivo">

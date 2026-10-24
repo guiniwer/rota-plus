@@ -9,7 +9,7 @@ export default function BottomNav({ perfil, onOpenMenu }) {
   const left = items.slice(0, 2)
   const right = items.slice(2)
   // o botão "Menu" só aparece se houver itens que não cabem na barra
-  const temMais = NAV[perfil].some((i) => !i.mobile && !i.fab)
+  const temMais = NAV[perfil].some((i) => !i.mobile && !i.fab && !i.soBarra)
 
   const link = (i) => (
     <NavLink key={i.to} to={i.to} end={i.end} className={({ isActive }) => (isActive ? 'active' : '')}>

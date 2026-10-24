@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import Page from '../../components/layout/Page'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
@@ -11,12 +11,11 @@ import KeyValue from '../../components/ui/KeyValue'
 import Segmented from '../../components/ui/Segmented'
 import Toggle from '../../components/ui/Toggle'
 import { useApp } from '../../context/AppContext'
-import { EmpresaApi, EntregasApi } from '../../services/api'
-import { MODELO_CSV, csvParaEntregas } from '../../utils/csv'
+import { EmpresaApi } from '../../services/api'
 import { maskDocumento } from '../../utils/format'
 import { dataHora } from '../../utils/tempo'
 
-const ABAS = ['Empresa', 'Integrações', 'Importar planilha', 'Caixa de saída', 'Privacidade (LGPD)', 'Dispositivos']
+const ABAS = ['Empresa', 'Privacidade (LGPD)', 'Integrações']
 const FUSOS = ['America/Recife', 'America/Sao_Paulo', 'America/Fortaleza', 'America/Bahia', 'America/Belem', 'America/Manaus', 'America/Cuiaba', 'America/Porto_Velho', 'America/Rio_Branco', 'America/Noronha']
 const STATUS_MSG = {
   enviado: { label: 'Enviado', tone: 'success' },
@@ -180,81 +179,6 @@ function Integracoes() {
   )
 }
 
-function Importar() {
-  const { executar, toast } = useApp()
-  const [arquivo, setArquivo] = useState(null)
-  const [previa, setPrevia] = useState(null)
-  const [resultado, setResultado] = useState(null)
-  const [enviando, setEnviando] = useState(false)
-
-  const ler = async (file) => {
-    if (!file) return
-    setArquivo(file.name)
-    setResultado(null)
-    setPrevia(csvParaEntregas(await file.text()))
-  }
-  const importar = async () => {
-    setEnviando(true)
-    const r = await executar(() => EntregasApi.importar(previa.entregas))
-    setEnviando(false)
-    if (!r) return
-    setResultado(r)
-    toast(`${r.criadas} entrega(s) importada(s).`)
-  }
-  const baixarModelo = () => {
-    const url = URL.createObjectURL(new Blob(['﻿' + MODELO_CSV], { type: 'text/csv;charset=utf-8' }))
-    Object.assign(document.createElement('a'), { href: url, download: 'modelo-entregas.csv' }).click()
-    URL.revokeObjectURL(url)
-  }
-
-  return (
-    <Card title="Importar entregas de planilha (CSV)">
-      <p className="small muted">
-        Exporte do Excel ou Google Planilhas como CSV. Colunas reconhecidas: cliente, endereço, cidade, janela (ex.: 09:00–11:00), prazo, telefone, e-mail, carga, peso, valor, valor NF, documento, entregador (e-mail) e instruções. Até 500 linhas por arquivo; os endereços são localizados no mapa em seguida.
-      </p>
-      <div className="row wrap">
-        <label className="btn btn-primary">
-          <Icon name="upload" size={18} /> Escolher arquivo
-          <input type="file" accept=".csv,text/csv" hidden onChange={(e) => ler(e.target.files[0])} />
-        </label>
-        <Button variant="secondary" icon="download" onClick={baixarModelo}>
-          Baixar modelo
-        </Button>
-        {arquivo && <span className="small muted">{arquivo}</span>}
-      </div>
-      {previa && (
-        <>
-          <p className="small">
-            {previa.entregas.length} linha(s) · colunas reconhecidas: {previa.colunas.join(', ') || 'nenhuma'}
-          </p>
-          <DataTable
-            rows={previa.entregas.slice(0, 5).map((e, i) => ({ ...e, id: i }))}
-            columns={[
-              { key: 'cliente', label: 'Cliente' },
-              { key: 'destino', label: 'Endereço' },
-              { key: 'janela', label: 'Janela' },
-              { key: 'entregadorEmail', label: 'Entregador' },
-            ]}
-          />
-          <Button onClick={importar} disabled={enviando || !previa.entregas.length} style={{ alignSelf: 'flex-start' }}>
-            {enviando ? 'Importando…' : `Importar ${previa.entregas.length} entrega(s)`}
-          </Button>
-        </>
-      )}
-      {resultado && (
-        <div className="stack-sm">
-          <strong className="green">{resultado.criadas} criada(s)</strong>
-          {resultado.erros.map((e) => (
-            <span key={e.linha} className="small red">
-              Linha {e.linha}: {e.erro}
-            </span>
-          ))}
-        </div>
-      )}
-    </Card>
-  )
-}
-
 function CaixaSaida() {
   const [lista, setLista] = useState(null)
   useEffect(() => {
@@ -285,7 +209,9 @@ function CaixaSaida() {
 export default function Configuracoes() {
   const { empresa, privacidade, setPrivacidade, resetarDemo } = useApp()
   const [params] = useSearchParams()
-  const [aba, setAba] = useState(params.get('aba') === 'importar' ? 'Importar planilha' : ABAS[0])
+  const [aba, setAba] = useState(ABAS[0])
+  // endereço antigo: a importação agora fica em Entregas
+  if (params.get('aba') === 'importar') return <Navigate to="/empresa/entregas?importar=1" replace />
   if (!empresa) return <Page title="Configurações" subtitle="Carregando…" />
   const d = empresa.dispositivos
 
@@ -294,9 +220,12 @@ export default function Configuracoes() {
       <Segmented options={ABAS} value={aba} onChange={setAba} />
 
       {aba === 'Empresa' && <DadosEmpresa key={empresa.id} />}
-      {aba === 'Integrações' && <Integracoes />}
-      {aba === 'Importar planilha' && <Importar />}
-      {aba === 'Caixa de saída' && <CaixaSaida />}
+      {aba === 'Integrações' && (
+        <>
+          <Integracoes />
+          <CaixaSaida />
+        </>
+      )}
 
       {aba === 'Privacidade (LGPD)' && (
         <Card title="Privacidade e LGPD" action={<Icon name="shield" color="var(--green)" />}>
@@ -307,7 +236,7 @@ export default function Configuracoes() {
         </Card>
       )}
 
-      {aba === 'Dispositivos' && (
+      {aba === 'Empresa' && (
         <div className="grid-2">
           <Card title="Dispositivos">
             <KeyValue label="Rastreadores GPS" value={`${d.rastreadores} · ${d.rastreadoresAtivos} com sinal nos últimos 30 min`} />

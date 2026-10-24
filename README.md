@@ -35,7 +35,7 @@ O **Rota+** é uma aplicação web responsiva, multiempresa, com quatro frentes:
 |---|---|---|
 | **Site público** | Qualquer pessoa | Apresentação, cotação de frete, mapa das transportadoras e **rastreio sem login** (código + CPF/CNPJ), com mapa e previsão de chegada |
 | **Área do cliente** | Quem envia ou recebe | Menu enxuto (Início, Meus pedidos, Meu perfil). Uma página por pedido com tudo junto. Pedido com escolha da transportadora e frete calculado no servidor, entregador no mapa com ETA real, conversa com o entregador, reagendamento, recado, comprovante (foto + assinatura), etiqueta com QR, notificações push e por e-mail, avaliação |
-| **Visão operacional** | Administrador da empresa | Painel, entregas (criação, importação CSV, atribuição, aviso por e-mail/WhatsApp), ativos (QR/RFID/GPS, etiquetas para impressão, rastreador), mapa ao vivo, central de alertas automática, equipes (convites, adesão, rota de cada entregador), relatórios e configurações (expediente, LGPD, API, webhook, caixa de saída) |
+| **Visão operacional** | Administrador da empresa | Menu com 7 áreas: **Painel** (indicadores, mapa ao vivo com tela cheia, alertas, prazos e gargalos), **Entregas** (criação, importação CSV, atribuição, aviso por e-mail/WhatsApp), **Ativos** (QR/RFID/GPS, escanear, etiquetas, rastreador), **Central de alertas**, **Equipes** (convites, adesão, rota de cada entregador), **Relatórios** e **Configurações** (Empresa, Privacidade/LGPD, Integrações com caixa de saída) |
 | **App do entregador** | Entregador da empresa | Só as entregas dele, na ordem da **rota otimizada**, GPS do aparelho, um botão por etapa, comprovante com foto, assinatura e localização, **fila offline** que envia sozinha ao reconectar |
 
 ### Separação por empresa (CNPJ)
@@ -72,15 +72,15 @@ Ao criar uma entrega, o sistema cria um ativo da categoria **Carga** (`CRG-…`)
 
 | Requisito do desafio | Onde está no sistema |
 |---|---|
-| Localização, responsável, status e histórico do ativo | `Ativos` › ficha do ativo: mapa com a trilha do rastreador, uso em horas/dia, check-in/out, transferência, extravio |
+| Localização, responsável, status e histórico do ativo | `Ativos` › ficha do ativo: mapa com a trilha do rastreador, uso em horas/dia, check-in/out, transferência, extravio; posição de tudo no mapa ao vivo do `Painel` |
 | Alertas: atraso, desvio, inatividade, perda de sinal, uso indevido | Monitor automático + `Central de alertas` (SLA, fluxo de resposta, assumir, resolver) |
-| Painel com visão geral, pendências, ativos disponíveis e gargalos | `Painel da operação` (gargalos medidos pelos eventos das entregas) |
-| Interface simples para a equipe de campo | `App do entregador` (rota otimizada, um botão por etapa, comprovante, GPS, offline) e `Escanear` |
-| Comunicação com clientes | Rastreio público, link compartilhável, conversa, push, e-mail, WhatsApp, reagendamento, recado, avaliação |
+| Painel com visão geral, pendências, ativos disponíveis e gargalos | `Painel` (entregas em aberto, ativos em campo e disponíveis, mapa ao vivo, alertas, próximos prazos e gargalos medidos pelos eventos) |
+| Interface simples para a equipe de campo | `App do entregador` (rota otimizada, um botão por etapa, comprovante, GPS, offline) e `Ativos › Escanear` (botão central no celular) |
+| Comunicação com clientes | `Entregas › Avisar cliente`, rastreio público, link compartilhável, conversa, push, e-mail, WhatsApp, reagendamento, recado, avaliação |
 | Relatórios de desempenho | `Relatórios` (7, 30 ou 90 dias) com CSV |
-| LGPD e risco de controle excessivo | Expediente, termo de ciência, exclusão após 90 dias, compartilhamento controlado |
+| LGPD e risco de controle excessivo | `Configurações › Privacidade (LGPD)` e `Equipes`: expediente, termo de ciência, exclusão após 90 dias, compartilhamento controlado |
 | Empresas de diferentes portes | QR (barato), RFID ou GPS; vários CNPJs na mesma instalação |
-| Integração com outros sistemas | API REST com chave, webhooks assinados, importação CSV, entrada de rastreadores |
+| Integração com outros sistemas | `Configurações › Integrações` (API REST com chave, webhooks assinados, caixa de saída), `Entregas › Importar CSV`, entrada de rastreadores |
 
 ### Regras de frete (Novo pedido e Cotação)
 
@@ -261,14 +261,14 @@ Abra **http://localhost:5173** (a API fica na porta **3001**). Na primeira execu
 | Entregador | aba **Empresa** → **Demo: entregador** (`thiago@logisuape.com.br`, mesmo CNPJ). Também existem `carla@`, `anapaula@`, `rafael@`, `jonas@` e `bruno@logisuape.com.br` |
 | Rastreio sem login | menu **Rastrear** → código `RT-90827-BR` + CPF `123.456.789-09` |
 
-A empresa de demonstração vem com 30 dias de operação gerados com datas relativas ao dia em que o banco foi criado. Para recomeçar: `npm run db:reset` ou **Configurações › Dispositivos › Restaurar dados** (só aparece na empresa de demonstração).
+A empresa de demonstração vem com 30 dias de operação gerados com datas relativas ao dia em que o banco foi criado. Para recomeçar: `npm run db:reset` ou **Configurações › Empresa › Restaurar dados** (só aparece na empresa de demonstração).
 
 ### Roteiro sugerido para avaliação
 
 1. **Cliente:** faça um *Novo pedido* escolhendo a transportadora; ele abre na página do pedido, que reúne mapa, chegada estimada, entregador, etiqueta com QR e avaliação. O menu do cliente tem só **Início**, **Meus pedidos** e **Meu perfil**.
 2. **Administrador:** o pedido aparece na hora em *Entregas* e em *Ativos › Carga*. Atribua ao **Thiago Rodrigues**. Veja *Relatórios* e o *Painel* com os indicadores dos últimos dias.
-3. Em outro navegador, entre como **entregador** e permita a localização: a posição aparece no *Mapa ao vivo* do administrador e o cliente passa a ver o ETA. Avance as etapas e registre a entrega com foto e assinatura. Desligue a internet do aparelho para ver a fila offline.
-4. Em **Ativos**, imprima as etiquetas e leia uma pela câmera em **Escanear** para fazer check-out/check-in.
+3. Em outro navegador, entre como **entregador** e permita a localização: a posição aparece no mapa ao vivo do *Painel* do administrador e o cliente passa a ver o ETA. Avance as etapas e registre a entrega com foto e assinatura. Desligue a internet do aparelho para ver a fila offline.
+4. Em **Ativos**, imprima as etiquetas e leia uma pela câmera em **Ativos › Escanear** para fazer check-out/check-in.
 5. Na **Central de alertas**, acompanhe os alertas que o monitor abre (ex.: entrega com prazo vencido) e resolva um.
 6. Em **Equipes**, gere um convite e cadastre um entregador novo pelo link.
 7. Em **Configurações › Integrações**, gere a chave da API e crie uma entrega com o `curl` acima.
