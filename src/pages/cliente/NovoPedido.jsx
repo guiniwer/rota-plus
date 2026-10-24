@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Page from '../../components/layout/Page'
 import Button from '../../components/ui/Button'
@@ -9,12 +9,14 @@ import KeyValue from '../../components/ui/KeyValue'
 import OptionCard from '../../components/ui/OptionCard'
 import Segmented from '../../components/ui/Segmented'
 import { useApp } from '../../context/AppContext'
+import { EmpresaApi } from '../../services/api'
 import { brl, num } from '../../utils/format'
 import RotaCidades from '../../components/entregas/RotaCidades'
 import { nomeCidade } from '../../data/cidades'
 import { FATOR_CUBAGEM, TAXA_EXPRESSA, TAXA_GPS, calcularFrete } from '../../utils/frete'
 
 const INICIAL = {
+  empresaId: '',
   destinatario: '',
   telefone: '',
   enderecoOrigem: '',
@@ -27,7 +29,7 @@ const INICIAL = {
   altura: '12',
   peso: '2.5',
   descricao: '',
-  valorNF: '4500',
+  valorNF: '',
   modalidade: 'expressa',
   rastreio: 'gps',
 }
@@ -38,6 +40,15 @@ export default function NovoPedido() {
   const navigate = useNavigate()
   const [form, setForm] = useState(INICIAL)
   const [erros, setErros] = useState({})
+  const [transportadoras, setTransportadoras] = useState([])
+  useEffect(() => {
+    EmpresaApi.publicas()
+      .then((lista) => {
+        setTransportadoras(lista)
+        if (lista.length) setForm((f) => ({ ...f, empresaId: f.empresaId || String(lista[0].id) }))
+      })
+      .catch(() => toast('Não foi possível carregar as transportadoras.'))
+  }, [toast])
 
   const set = (campo) => (e) => setForm((f) => ({ ...f, [campo]: e?.target ? e.target.value : e }))
   const frete = useMemo(() => calcularFrete(form), [form])
@@ -45,6 +56,7 @@ export default function NovoPedido() {
   const enviar = async (e) => {
     e.preventDefault()
     const n = {}
+    if (!form.empresaId) n.empresaId = 'Escolha a transportadora.'
     if (!form.destinatario.trim()) n.destinatario = 'Informe o destinatário.'
     if (!form.enderecoOrigem.trim()) n.enderecoOrigem = 'Informe o endereço de retirada.'
     if (!form.enderecoDestino.trim()) n.enderecoDestino = 'Informe o endereço de entrega.'
@@ -54,19 +66,24 @@ export default function NovoPedido() {
       toast('Revise os campos destacados.')
       return
     }
+    // o servidor recalcula frete e prazo com as mesmas regras (o valor mostrado aqui é só a cotação)
     const id = await criarPedido({
-      remetente: 'Você',
+      empresaId: Number(form.empresaId),
       destinatario: form.destinatario,
+      telefoneDestinatario: form.telefone || undefined,
       origem: `${form.enderecoOrigem} — ${nomeCidade(form.origem)}`,
       destino: `${form.enderecoDestino} — ${nomeCidade(form.destino)}`,
-      destinoCidade: form.destino, // usado para localizar a parada na rota do entregador
+      origemCidade: form.origem,
+      destinoCidade: form.destino,
+      formato: form.tipoCarga,
+      comprimento: Number(form.comprimento),
+      largura: Number(form.largura),
+      altura: Number(form.altura),
+      peso: Number(form.peso),
       valorNF: Number(form.valorNF) || 0,
       tipoCarga: form.tipoCarga === 'caixa' ? `Caixa · ${form.descricao || 'diversos'}` : 'Documentos',
-      pesoTaxado: frete.pesoTaxado,
       modalidade: form.modalidade,
       rastreio: form.rastreio,
-      valor: frete.total,
-      prazoTexto: frete.prazoTexto,
     })
     if (!id) return
     toast(`Pedido ${id} criado!`)
@@ -77,7 +94,15 @@ export default function NovoPedido() {
     <Page title="Fazer pedido" subtitle="Envie pacotes de forma rápida e segura">
       <form className="grid-aside" onSubmit={enviar} noValidate>
         <div className="stack">
-          <Card title="1. Endereços">
+          <Card title="1. Transportadora e endereços">
+            <Field
+              label="Transportadora"
+              as="select"
+              value={form.empresaId}
+              onChange={set('empresaId')}
+              error={erros.empresaId}
+              options={transportadoras.length ? transportadoras.map((t) => ({ value: String(t.id), label: `${t.nome}${t.segmento ? ` · ${t.segmento}` : ''}` })) : [{ value: '', label: 'Carregando…' }]}
+            />
             <RotaCidades origem={form.origem} destino={form.destino} onChange={(rota) => setForm((f) => ({ ...f, ...rota }))} />
             <div className="grid-form">
               <Field label="Endereço de retirada (origem)" value={form.enderecoOrigem} onChange={set('enderecoOrigem')} error={erros.enderecoOrigem} placeholder="Rua, número e bairro" />
@@ -145,7 +170,7 @@ export default function NovoPedido() {
             ))}
             <hr style={{ border: 0, borderTop: '1px solid var(--line)', width: '100%', margin: 0 }} />
             <KeyValue label="Total estimado" value={brl(frete.total)} valueColor="var(--pink)" strong />
-            <KeyValue label="Prazo" value={frete.prazoTexto} />
+            <KeyValue label="Prazo" value={`${frete.prazoTexto}, até 18:00`} />
             <Button type="submit" block>
               Solicitar envio
             </Button>

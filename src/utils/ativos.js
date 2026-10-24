@@ -1,3 +1,5 @@
+import { relativo } from './tempo'
+
 // Cor do marcador do ativo no mapa, conforme o status
 export const COR_STATUS_ATIVO = {
   em_uso: '#4CAF50',
@@ -21,5 +23,32 @@ export const SUGESTOES_TIPO_ATIVO = {
   Carga: ['Caixa', 'Envelope / documentos', 'Palete', 'Contêiner', 'Volume'],
 }
 
-export const toMarkers = (ativos) =>
-  ativos.map((a) => ({ id: a.id, x: a.x, y: a.y, color: COR_STATUS_ATIVO[a.status] ?? '#8E64D8', label: `${a.nome} (${a.id})` }))
+/** Marcadores (Leaflet) dos ativos com posição conhecida. */
+export const marcadoresAtivos = (ativos) =>
+  ativos
+    .filter((a) => a.lat != null && a.lng != null)
+    .map((a) => ({
+      id: a.id,
+      lat: a.lat,
+      lng: a.lng,
+      cor: COR_STATUS_ATIVO[a.status] ?? '#8E64D8',
+      titulo: `${a.nome} (${a.id})`,
+      popup: [`${a.nome} · ${a.id}`, a.responsavel ? `Com ${a.responsavel}` : a.local, `Última leitura ${relativo(a.ultimaLeituraEm)}`],
+    }))
+
+/** Marcadores dos entregadores pela última posição enviada pelo app. */
+export const marcadoresEntregadores = (lista) =>
+  lista.map((u) => {
+    const recente = Date.now() - Date.parse(u.atualizadoEm) < 10 * 60_000
+    return {
+      id: `u${u.id}`,
+      lat: u.lat,
+      lng: u.lng,
+      forma: 'veiculo',
+      texto: u.nome[0],
+      cor: recente ? '#E856A6' : '#979797',
+      precisao: u.precisao,
+      titulo: u.nome,
+      popup: [u.nome, `${u.emRota} entrega(s) em rota`, `GPS ${relativo(u.atualizadoEm)}${u.precisao ? ` · ±${u.precisao} m` : ''}`],
+    }
+  })

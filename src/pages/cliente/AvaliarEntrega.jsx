@@ -6,11 +6,15 @@ import EmptyState from '../../components/ui/EmptyState'
 import Field from '../../components/ui/Field'
 import Icon from '../../components/ui/Icon'
 import KeyValue from '../../components/ui/KeyValue'
+import Modal from '../../components/ui/Modal'
 import Segmented from '../../components/ui/Segmented'
+import { ReportarProblema } from '../../components/entregas/AcoesCliente'
+import Comprovante from '../../components/entregas/Comprovante'
 import EntregaSelector from '../../components/entregas/EntregaSelector'
 import { EntregaBadge } from '../../components/entregas/StatusBadge'
 import { useApp } from '../../context/AppContext'
 import useEntregaSelecionada from '../../hooks/useEntregaSelecionada'
+import { dataHora } from '../../utils/tempo'
 
 const ROTULOS = ['', 'Muito ruim', 'Ruim', 'Regular', 'Muito bom', 'Excelente']
 const ESTADOS = ['Perfeito estado', 'Danificado', 'Incompleto']
@@ -23,6 +27,7 @@ export default function AvaliarEntrega() {
   const [hover, setHover] = useState(0)
   const [estado, setEstado] = useState(ESTADOS[0])
   const [comentario, setComentario] = useState('')
+  const [problema, setProblema] = useState(false)
 
   if (!entrega) {
     return (
@@ -35,33 +40,29 @@ export default function AvaliarEntrega() {
   }
 
   const jaAvaliada = entrega.avaliacao
-  const confirmar = () => {
+  const confirmar = async () => {
     if (!nota) {
       toast('Escolha de 1 a 5 estrelas.')
       return
     }
-    avaliarEntrega(entrega.id, { nota, estado, comentario })
-    if (estado !== 'Perfeito estado') toast('Registramos a ocorrência. Nossa equipe entrará em contato.')
+    const ok = await avaliarEntrega(entrega.id, { nota, estado, comentario })
+    if (ok && estado !== 'Perfeito estado') toast('Registramos a ocorrência com a transportadora. A equipe entrará em contato.')
   }
 
   return (
     <Page title="Confirmar entrega" subtitle="Avalie como foi sua experiência" actions={<EntregaSelector entregas={lista} selecionada={entrega} basePath="/cliente/avaliar" />}>
       <div className="grid-aside">
         <Card title="Comprovante de recebimento" action={<EntregaBadge status={entrega.status} />}>
-          <div className="photo-drop" style={{ height: 260, cursor: 'default' }}>
-            <Icon name="camera" size={48} color="var(--purple)" />
-            <span>Foto registrada pelo entregador</span>
-          </div>
-          <div className="grid-2" style={{ gap: 12 }}>
-            <div className="stack-sm">
+          {entrega.comprovante ? (
+            <Comprovante entregaId={entrega.id} />
+          ) : (
+            <>
+              <p className="muted">O entregador ainda não registrou o comprovante. Ao confirmar, você declara que recebeu a encomenda.</p>
               <KeyValue label="Pedido" value={entrega.id} />
-              <KeyValue label="Recebido por" value={entrega.destinatario} />
-            </div>
-            <div className="stack-sm">
-              <KeyValue label="Data e hora" value={entrega.eventos[0]?.data} />
+              <KeyValue label="Saiu para entrega" value={dataHora(entrega.eventos.find((e) => e.status === 'saiu')?.data)} />
               <KeyValue label="Entregador" value={entrega.responsavel ?? '—'} />
-            </div>
-          </div>
+            </>
+          )}
         </Card>
 
         {jaAvaliada ? (
@@ -97,7 +98,7 @@ export default function AvaliarEntrega() {
               <Field label="Deixe um comentário (opcional)" as="textarea" value={comentario} onChange={(e) => setComentario(e.target.value)} placeholder="Muito rápido e educado!" />
             </Card>
             <div className="grid-2" style={{ gap: 12 }}>
-              <Button variant="outline" onClick={() => toast('Chamado de problema aberto.')}>
+              <Button variant="outline" onClick={() => setProblema(true)}>
                 Reportar problema
               </Button>
               <Button onClick={confirmar}>Confirmar recebimento</Button>
@@ -105,6 +106,9 @@ export default function AvaliarEntrega() {
           </div>
         )}
       </div>
+      <Modal title="Reportar problema" open={problema} onClose={() => setProblema(false)}>
+        {problema && <ReportarProblema entrega={entrega} onFechar={() => setProblema(false)} />}
+      </Modal>
     </Page>
   )
 }

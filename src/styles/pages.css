@@ -307,3 +307,81 @@
     font-size: 32px;
   }
 }
+
+.scanner-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.scanner.rfid {
+  gap: 16px;
+  align-content: center;
+  text-align: center;
+  padding: 24px;
+  cursor: pointer;
+}
+.rfid-onda {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  border: 4px solid var(--line);
+}
+.scanner.rfid.pronto .rfid-onda {
+  border-color: var(--pink);
+  animation: onda 1.4s ease-out infinite;
+}
+@keyframes onda {
+  from {
+    box-shadow: 0 0 0 0 rgba(232, 86, 166, 0.55);
+  }
+  to {
+    box-shadow: 0 0 0 36px rgba(232, 86, 166, 0);
+  }
+}
+
+/* ---------- Etiquetas QR para impressão ---------- */
+.etiquetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  max-height: 55vh;
+  overflow: auto;
+}
+.etiqueta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 10px;
+  background: #fff;
+  color: #1a0d31;
+  break-inside: avoid;
+}
+.etiqueta strong {
+  display: block;
+  font-size: 14px;
+}
+.etiqueta span {
+  font-size: 12px;
+}
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .etiquetas,
+  .etiquetas * {
+    visibility: visible;
+  }
+  .etiquetas {
+    position: absolute;
+    inset: 0;
+    max-height: none;
+    overflow: visible;
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .etiqueta {
+    border: 1px dashed #999;
+  }
+}

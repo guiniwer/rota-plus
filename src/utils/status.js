@@ -36,7 +36,7 @@ export const TIPOS_ALERTA = {
   inatividade: { label: 'Inatividade', icon: 'activity', color: 'var(--amber)' },
   sinal: { label: 'Perda de sinal', icon: 'wifioff', color: 'var(--red)' },
   uso_indevido: { label: 'Uso indevido', icon: 'lock', color: 'var(--purple)' },
-  geocerca: { label: 'Saída de geocerca', icon: 'pin', color: 'var(--cyan)' },
+  ocorrencia: { label: 'Ocorrências', icon: 'alert', color: 'var(--pink)' },
 }
 
 export const TIPO_ATIVO_ICON = {

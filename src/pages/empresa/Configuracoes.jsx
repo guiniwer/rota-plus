@@ -1,120 +1,328 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import Page from '../../components/layout/Page'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
+import DataTable from '../../components/ui/DataTable'
 import Field from '../../components/ui/Field'
 import Icon from '../../components/ui/Icon'
 import KeyValue from '../../components/ui/KeyValue'
-import ProgressBar from '../../components/ui/ProgressBar'
 import Segmented from '../../components/ui/Segmented'
 import Toggle from '../../components/ui/Toggle'
 import { useApp } from '../../context/AppContext'
+import { EmpresaApi, EntregasApi } from '../../services/api'
+import { MODELO_CSV, csvParaEntregas } from '../../utils/csv'
+import { maskDocumento } from '../../utils/format'
+import { dataHora } from '../../utils/tempo'
 
-const ABAS = ['Perfil da empresa', 'Integrações', 'Privacidade (LGPD)', 'Dispositivos e plano']
+const ABAS = ['Empresa', 'Integrações', 'Importar planilha', 'Caixa de saída', 'Privacidade (LGPD)', 'Dispositivos']
+const FUSOS = ['America/Recife', 'America/Sao_Paulo', 'America/Fortaleza', 'America/Bahia', 'America/Belem', 'America/Manaus', 'America/Cuiaba', 'America/Porto_Velho', 'America/Rio_Branco', 'America/Noronha']
+const STATUS_MSG = {
+  enviado: { label: 'Enviado', tone: 'success' },
+  link: { label: 'Link gerado', tone: 'info' },
+  nao_configurado: { label: 'Não enviado (SMTP não configurado)', tone: 'warning' },
+  falhou: { label: 'Falhou', tone: 'danger' },
+}
+const API_URL = `${window.location.origin}/api`
 
-const INTEGRACOES = [
-  { id: 'erp', icon: 'building', nome: 'ERP (SAP / TOTVS)', desc: 'Pedidos e notas fiscais importados automaticamente', on: true },
-  { id: 'wms', icon: 'box', nome: 'WMS / Estoque', desc: 'Sincroniza saídas e retornos de ativos', on: true },
-  { id: 'csv', icon: 'upload', nome: 'Planilhas CSV / Excel', desc: 'Importação em lote de entregas e ativos', on: false },
-  { id: 'api', icon: 'link', nome: 'API REST e Webhooks', desc: 'Eventos de status, alertas e comprovantes em tempo real', on: true },
-  { id: 'whats', icon: 'send', nome: 'WhatsApp Business', desc: 'Avisos de saída, atraso e entrega ao cliente', on: true },
-  { id: 'cmms', icon: 'wrench', nome: 'Manutenção (CMMS)', desc: 'Abre ordens de serviço a partir de alertas', on: false },
-]
+function Copiavel({ valor }) {
+  const { toast } = useApp()
+  return (
+    <div className="row" style={{ gap: 8 }}>
+      <code className="codigo grow">{valor}</code>
+      <Button size="sm" variant="secondary" onClick={() => navigator.clipboard.writeText(valor).then(() => toast('Copiado.'))}>
+        Copiar
+      </Button>
+    </div>
+  )
+}
 
-export default function Configuracoes() {
-  const { usuario, privacidade, setPrivacidade, resetarDemo, toast } = useApp()
-  const [aba, setAba] = useState(ABAS[0])
-  const [perfil, setPerfil] = useState({ razao: usuario.empresa ?? '', cnpj: usuario.cnpj ?? '', segmento: 'Logística e distribuição', email: usuario.email ?? '', telefone: '(81) 3333-4455', endereco: 'Rod. PE-60, km 10 — Complexo de Suape, Ipojuca/PE' })
-  const [integracoes, setIntegracoes] = useState(INTEGRACOES)
-  const set = (k) => (e) => setPerfil((p) => ({ ...p, [k]: e.target.value }))
+function DadosEmpresa() {
+  const { empresa, recarregarEmpresa, executar, toast } = useApp()
+  const [f, setF] = useState(() => ({ ...empresa }))
+  const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }))
+  const salvar = async (e) => {
+    e.preventDefault()
+    const r = await executar(() =>
+      EmpresaApi.salvar({ razaoSocial: f.razaoSocial, fantasia: f.fantasia, segmento: f.segmento, email: f.email, telefone: f.telefone, endereco: f.endereco, turnoInicio: f.turnoInicio, turnoFim: f.turnoFim, fuso: f.fuso }),
+    )
+    if (!r) return
+    await recarregarEmpresa()
+    toast(r.baseLocalizada ? 'Dados da empresa salvos.' : 'Salvo, mas o endereço não foi encontrado no mapa — a base continua na posição anterior.')
+  }
+  return (
+    <div className="grid-2">
+      <Card title="Dados cadastrais">
+        <form className="stack-sm" style={{ gap: 16 }} onSubmit={salvar}>
+          <div className="grid-form">
+            <Field label="Razão social" value={f.razaoSocial ?? ''} onChange={set('razaoSocial')} />
+            <Field label="CNPJ" value={maskDocumento(f.cnpj ?? '')} disabled hint="O CNPJ identifica a empresa e não pode ser alterado." />
+            <Field label="Nome fantasia" value={f.fantasia ?? ''} onChange={set('fantasia')} />
+            <Field label="Segmento" value={f.segmento ?? ''} onChange={set('segmento')} />
+            <Field label="E-mail corporativo" type="email" value={f.email ?? ''} onChange={set('email')} />
+            <Field label="Telefone" value={f.telefone ?? ''} onChange={set('telefone')} />
+          </div>
+          <Field label="Endereço da base / CD (ponto de saída das rotas)" value={f.endereco ?? ''} onChange={set('endereco')} />
+          <div className="grid-form">
+            <Field label="Expediente — início" type="time" value={f.turnoInicio ?? ''} onChange={set('turnoInicio')} />
+            <Field label="Expediente — fim" type="time" value={f.turnoFim ?? ''} onChange={set('turnoFim')} />
+            <Field label="Fuso horário" as="select" value={f.fuso} onChange={set('fuso')} options={FUSOS} />
+          </div>
+          <Button type="submit" style={{ alignSelf: 'flex-start' }}>
+            Salvar alterações
+          </Button>
+        </form>
+      </Card>
+      <Card title="Como o expediente é usado">
+        <p className="small muted">O horário de expediente define quando o GPS dos entregadores é aceito (LGPD), quando um check-out de ativo gera alerta de uso indevido e a capacidade usada no cálculo de utilização dos ativos.</p>
+        <KeyValue label="Base no mapa" value={empresa.lat != null ? `${empresa.lat.toFixed(4)}, ${empresa.lng.toFixed(4)}` : 'não localizada'} />
+        <KeyValue label="E-mail transacional" value={empresa.emailConfigurado ? 'SMTP configurado' : 'SMTP não configurado no servidor'} />
+      </Card>
+    </div>
+  )
+}
+
+function Integracoes() {
+  const { empresa, recarregarEmpresa, executar, toast } = useApp()
+  const [chave, setChave] = useState(null)
+  const [url, setUrl] = useState(empresa.webhookUrl ?? '')
+  const [segredo, setSegredo] = useState(null)
+  const [teste, setTeste] = useState(null)
+
+  const gerar = async () => {
+    if (empresa.temApiKey && !window.confirm('Gerar uma nova chave invalida a atual. Continuar?')) return
+    const r = await executar(() => EmpresaApi.gerarApiKey())
+    if (!r) return
+    setChave(r.apiKey)
+    recarregarEmpresa()
+  }
+  const revogar = async () => {
+    if (!window.confirm('Revogar a chave? Integrações que a usam deixam de funcionar.')) return
+    if (!(await executar(() => EmpresaApi.revogarApiKey().then(() => true)))) return
+    setChave(null)
+    recarregarEmpresa()
+    toast('Chave revogada.')
+  }
+  const salvarWebhook = async (e) => {
+    e.preventDefault()
+    const r = await executar(() => EmpresaApi.webhook(url))
+    if (!r) return
+    setSegredo(r.segredo)
+    recarregarEmpresa()
+    toast(r.webhookUrl ? 'Webhook salvo.' : 'Webhook removido.')
+  }
+  const testar = async () => setTeste(await executar(() => EmpresaApi.testarWebhook()))
 
   return (
-    <Page title="Configurações" subtitle="Empresa, integrações, privacidade e dispositivos">
-      <Segmented options={ABAS} value={aba} onChange={setAba} />
-
-      {aba === 'Perfil da empresa' && (
-        <Card title="Perfil da empresa">
-          <form
-            className="stack-sm"
-            style={{ gap: 16 }}
-            onSubmit={(e) => {
-              e.preventDefault()
-              toast('Dados da empresa salvos.')
-            }}
-          >
-            <div className="grid-form">
-              <Field label="Razão social" value={perfil.razao} onChange={set('razao')} />
-              <Field label="CNPJ" value={perfil.cnpj} onChange={set('cnpj')} />
-              <Field label="Segmento" value={perfil.segmento} onChange={set('segmento')} />
-              <Field label="E-mail corporativo" type="email" value={perfil.email} onChange={set('email')} />
-              <Field label="Telefone" value={perfil.telefone} onChange={set('telefone')} />
-              <Field label="Endereço da sede" value={perfil.endereco} onChange={set('endereco')} />
-            </div>
-            <Button type="submit" style={{ alignSelf: 'flex-start' }}>
-              Salvar alterações
+    <div className="grid-2">
+      <Card title="API REST" action={<Badge tone={empresa.temApiKey ? 'success' : 'neutral'}>{empresa.temApiKey ? 'Chave ativa' : 'Sem chave'}</Badge>}>
+        <p className="small muted">Para o seu ERP, WMS ou e-commerce criar e consultar entregas. Envie a chave no cabeçalho <code>X-Api-Key</code>.</p>
+        {chave && (
+          <>
+            <span className="label">Sua chave (mostrada só agora — guarde em local seguro)</span>
+            <Copiavel valor={chave} />
+          </>
+        )}
+        <div className="row">
+          <Button size="sm" onClick={gerar}>
+            {empresa.temApiKey ? 'Gerar nova chave' : 'Gerar chave'}
+          </Button>
+          {empresa.temApiKey && (
+            <Button size="sm" variant="outline" onClick={revogar}>
+              Revogar
             </Button>
-          </form>
-        </Card>
-      )}
-
-      {aba === 'Integrações' && (
-        <div className="grid-2">
-          {integracoes.map((i) => (
-            <Card key={i.id} compact>
-              <div className="row">
-                <span className="icon-chip" style={{ background: 'rgba(142,100,216,.16)' }}>
-                  <Icon name={i.icon} color="var(--purple)" />
-                </span>
-                <strong className="grow">{i.nome}</strong>
-                <Badge tone={i.on ? 'success' : 'neutral'}>{i.on ? 'Conectado' : 'Desconectado'}</Badge>
-              </div>
-              <p className="small muted">{i.desc}</p>
-              <Button
-                variant={i.on ? 'secondary' : 'violet'}
-                size="sm"
-                style={{ alignSelf: 'flex-start' }}
-                onClick={() => {
-                  setIntegracoes((list) => list.map((x) => (x.id === i.id ? { ...x, on: !x.on } : x)))
-                  toast(`${i.nome} ${i.on ? 'desconectado' : 'conectado'}.`)
-                }}
-              >
-                {i.on ? 'Desconectar' : 'Conectar'}
+          )}
+        </div>
+        <span className="label">Exemplo</span>
+        <pre className="codigo">{`curl ${API_URL}/v1/entregas \\
+  -H "X-Api-Key: ${chave ?? 'rp_...'}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"cliente":"Loja Centro","destino":"Rua da Aurora, 100, Recife/PE","janela":"14:00–16:00"}'`}</pre>
+        <p className="small muted">Endpoints: GET/POST /v1/entregas · GET /v1/entregas/:id · PATCH /v1/entregas/:id/status · GET /v1/ativos</p>
+      </Card>
+      <Card title="Webhook" action={<Badge tone={empresa.webhookUrl ? 'success' : 'neutral'}>{empresa.webhookUrl ? 'Ativo' : 'Desligado'}</Badge>}>
+        <p className="small muted">
+          Recebe um POST a cada evento (<code>entrega.criada</code> e <code>entrega.status</code>). O corpo é assinado com HMAC-SHA256 no cabeçalho <code>X-RotaPlus-Assinatura</code>.
+        </p>
+        <form className="stack-sm" onSubmit={salvarWebhook}>
+          <Field label="URL de destino" type="url" placeholder="https://seu-sistema.com.br/webhooks/rota" value={url} onChange={(e) => setUrl(e.target.value)} />
+          <div className="row">
+            <Button size="sm" type="submit">
+              Salvar
+            </Button>
+            {empresa.webhookUrl && (
+              <Button size="sm" variant="secondary" onClick={testar}>
+                Enviar teste
               </Button>
-            </Card>
+            )}
+          </div>
+        </form>
+        {segredo && (
+          <>
+            <span className="label">Segredo para validar a assinatura</span>
+            <Copiavel valor={segredo} />
+          </>
+        )}
+        {teste && <p className={`small ${teste.ok ? 'green' : 'red'}`}>{teste.ok ? `Recebido pelo seu servidor (HTTP ${teste.status}).` : `Falhou: ${teste.erro ?? `HTTP ${teste.status}`}`}</p>}
+      </Card>
+      <Card title="Rastreadores GPS (dispositivos)">
+        <p className="small muted">
+          Um rastreador ou celular dedicado envia a posição de um ativo para <code>POST {API_URL}/dispositivos/posicao</code> com o cabeçalho <code>X-Dispositivo-Token</code>. Gere o token na página do ativo.
+        </p>
+      </Card>
+      <Card title="E-mail e WhatsApp">
+        <p className="small muted">
+          {empresa.emailConfigurado ? 'O servidor está com SMTP configurado: avisos e convites são enviados por e-mail.' : 'Configure SMTP_HOST, SMTP_USER, SMTP_PASS e SMTP_FROM no servidor para enviar e-mails. Até lá, as mensagens ficam registradas na caixa de saída.'} Avisos por WhatsApp abrem o WhatsApp do operador com a mensagem pronta (wa.me).
+        </p>
+      </Card>
+    </div>
+  )
+}
+
+function Importar() {
+  const { executar, toast } = useApp()
+  const [arquivo, setArquivo] = useState(null)
+  const [previa, setPrevia] = useState(null)
+  const [resultado, setResultado] = useState(null)
+  const [enviando, setEnviando] = useState(false)
+
+  const ler = async (file) => {
+    if (!file) return
+    setArquivo(file.name)
+    setResultado(null)
+    setPrevia(csvParaEntregas(await file.text()))
+  }
+  const importar = async () => {
+    setEnviando(true)
+    const r = await executar(() => EntregasApi.importar(previa.entregas))
+    setEnviando(false)
+    if (!r) return
+    setResultado(r)
+    toast(`${r.criadas} entrega(s) importada(s).`)
+  }
+  const baixarModelo = () => {
+    const url = URL.createObjectURL(new Blob(['﻿' + MODELO_CSV], { type: 'text/csv;charset=utf-8' }))
+    Object.assign(document.createElement('a'), { href: url, download: 'modelo-entregas.csv' }).click()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <Card title="Importar entregas de planilha (CSV)">
+      <p className="small muted">
+        Exporte do Excel ou Google Planilhas como CSV. Colunas reconhecidas: cliente, endereço, cidade, janela (ex.: 09:00–11:00), prazo, telefone, e-mail, carga, peso, valor, valor NF, documento, entregador (e-mail) e instruções. Até 500 linhas por arquivo; os endereços são localizados no mapa em seguida.
+      </p>
+      <div className="row wrap">
+        <label className="btn btn-primary">
+          <Icon name="upload" size={18} /> Escolher arquivo
+          <input type="file" accept=".csv,text/csv" hidden onChange={(e) => ler(e.target.files[0])} />
+        </label>
+        <Button variant="secondary" icon="download" onClick={baixarModelo}>
+          Baixar modelo
+        </Button>
+        {arquivo && <span className="small muted">{arquivo}</span>}
+      </div>
+      {previa && (
+        <>
+          <p className="small">
+            {previa.entregas.length} linha(s) · colunas reconhecidas: {previa.colunas.join(', ') || 'nenhuma'}
+          </p>
+          <DataTable
+            rows={previa.entregas.slice(0, 5).map((e, i) => ({ ...e, id: i }))}
+            columns={[
+              { key: 'cliente', label: 'Cliente' },
+              { key: 'destino', label: 'Endereço' },
+              { key: 'janela', label: 'Janela' },
+              { key: 'entregadorEmail', label: 'Entregador' },
+            ]}
+          />
+          <Button onClick={importar} disabled={enviando || !previa.entregas.length} style={{ alignSelf: 'flex-start' }}>
+            {enviando ? 'Importando…' : `Importar ${previa.entregas.length} entrega(s)`}
+          </Button>
+        </>
+      )}
+      {resultado && (
+        <div className="stack-sm">
+          <strong className="green">{resultado.criadas} criada(s)</strong>
+          {resultado.erros.map((e) => (
+            <span key={e.linha} className="small red">
+              Linha {e.linha}: {e.erro}
+            </span>
           ))}
         </div>
       )}
+    </Card>
+  )
+}
+
+function CaixaSaida() {
+  const [lista, setLista] = useState(null)
+  useEffect(() => {
+    EmpresaApi.mensagens().then(setLista).catch(() => setLista([]))
+  }, [])
+  return (
+    <Card title="Caixa de saída" action={<span className="small muted">últimas 100 mensagens</span>}>
+      {!lista ? (
+        <p className="muted">Carregando…</p>
+      ) : lista.length === 0 ? (
+        <p className="muted">Nenhuma mensagem enviada ainda.</p>
+      ) : (
+        <DataTable
+          rows={lista}
+          columns={[
+            { key: 'criadoEm', label: 'Quando', render: (m) => dataHora(m.criadoEm) },
+            { key: 'canal', label: 'Canal', render: (m) => <Badge tone="neutral">{m.canal}</Badge> },
+            { key: 'destino', label: 'Para', render: (m) => <span style={{ wordBreak: 'break-all' }}>{m.destino}</span> },
+            { key: 'assunto', label: 'Assunto', render: (m) => (<span>{m.assunto}{m.entregaId && <span className="cell-sub">{m.entregaId}</span>}</span>) },
+            { key: 'status', label: 'Situação', render: (m) => (<span><Badge tone={STATUS_MSG[m.status]?.tone ?? 'neutral'}>{STATUS_MSG[m.status]?.label ?? m.status}</Badge>{m.erro && <span className="cell-sub red">{m.erro}</span>}</span>) },
+          ]}
+        />
+      )}
+    </Card>
+  )
+}
+
+export default function Configuracoes() {
+  const { empresa, privacidade, setPrivacidade, resetarDemo } = useApp()
+  const [params] = useSearchParams()
+  const [aba, setAba] = useState(params.get('aba') === 'importar' ? 'Importar planilha' : ABAS[0])
+  if (!empresa) return <Page title="Configurações" subtitle="Carregando…" />
+  const d = empresa.dispositivos
+
+  return (
+    <Page title="Configurações" subtitle={`${empresa.razaoSocial} · CNPJ ${maskDocumento(empresa.cnpj)}`}>
+      <Segmented options={ABAS} value={aba} onChange={setAba} />
+
+      {aba === 'Empresa' && <DadosEmpresa key={empresa.id} />}
+      {aba === 'Integrações' && <Integracoes />}
+      {aba === 'Importar planilha' && <Importar />}
+      {aba === 'Caixa de saída' && <CaixaSaida />}
 
       {aba === 'Privacidade (LGPD)' && (
         <Card title="Privacidade e LGPD" action={<Icon name="shield" color="var(--green)" />}>
-          <Toggle title="Rastrear pessoas só no expediente" description="Turnos definidos por equipe" checked={privacidade.soExpediente} onChange={(v) => setPrivacidade((p) => ({ ...p, soExpediente: v }))} />
-          <Toggle title="Termo de ciência do colaborador" description="Assinado no 1º acesso ao app" checked={privacidade.termoCiencia} onChange={(v) => setPrivacidade((p) => ({ ...p, termoCiencia: v }))} />
-          <Toggle title="Anonimizar localização após 90 dias" checked={privacidade.anonimizar90} onChange={(v) => setPrivacidade((p) => ({ ...p, anonimizar90: v }))} />
-          <Toggle title="Compartilhar ETA com clientes finais" description="Sem expor a posição do colaborador fora da rota" checked={privacidade.compartilharEta} onChange={(v) => setPrivacidade((p) => ({ ...p, compartilharEta: v }))} />
-          <span className="small grey">Encarregado de dados (DPO): dpo@empresa.com.br</span>
+          <Toggle title="Rastrear pessoas só no expediente" description={`O servidor recusa posições do app fora de ${empresa.turnoInicio}–${empresa.turnoFim}`} checked={privacidade.soExpediente} onChange={(v) => setPrivacidade((p) => ({ ...p, soExpediente: v }))} />
+          <Toggle title="Termo de ciência do colaborador" description="Exibido no app do entregador antes de ativar o GPS" checked={privacidade.termoCiencia} onChange={(v) => setPrivacidade((p) => ({ ...p, termoCiencia: v }))} />
+          <Toggle title="Apagar localização de pessoas após 90 dias" description="Rotina diária remove o histórico de GPS dos entregadores" checked={privacidade.anonimizar90} onChange={(v) => setPrivacidade((p) => ({ ...p, anonimizar90: v }))} />
+          <Toggle title="Compartilhar ETA e mapa com clientes finais" description="Só durante a entrega; o cliente nunca vê a posição fora da rota" checked={privacidade.compartilharEta} onChange={(v) => setPrivacidade((p) => ({ ...p, compartilharEta: v }))} />
         </Card>
       )}
 
-      {aba === 'Dispositivos e plano' && (
+      {aba === 'Dispositivos' && (
         <div className="grid-2">
           <Card title="Dispositivos">
-            <KeyValue label="Rastreadores GPS" value="92 · 3 com bateria baixa" />
-            <KeyValue label="Leitores RFID (portais)" value="6" />
-            <KeyValue label="Etiquetas QR impressas" value="812" />
-            <KeyValue label="Aparelhos com app de campo" value="42" />
+            <KeyValue label="Rastreadores GPS" value={`${d.rastreadores} · ${d.rastreadoresAtivos} com sinal nos últimos 30 min`} />
+            <KeyValue label="Etiquetas QR" value={d.etiquetasQr} />
+            <KeyValue label="Etiquetas RFID" value={d.etiquetasRfid} />
+            <KeyValue label="Apps de campo com GPS ativo" value={`${d.appsAtivos} de ${d.entregadores} entregador(es)`} />
           </Card>
-          <Card title="Plano Pro" action={<Badge tone="success">Ativo</Badge>}>
-            <KeyValue label="Ativos rastreados" value="1.248 / 1.500" />
-            <ProgressBar value={83} />
-            <p className="small muted">Planos para todos os portes: Essencial (até 100 ativos, só QR), Pro e Enterprise (RFID, API e SSO).</p>
-          </Card>
-          <Card title="Dados de demonstração">
-            <p className="small muted">Volta todas as entregas, ativos e alertas para o estado inicial.</p>
-            <Button variant="outline" onClick={resetarDemo} style={{ alignSelf: 'flex-start' }}>
-              Restaurar dados
-            </Button>
-          </Card>
+          {empresa.demo && (
+            <Card title="Dados de demonstração">
+              <p className="small muted">Esta é a empresa de demonstração. Restaurar apaga tudo o que foi feito nela e gera de novo o histórico de 30 dias.</p>
+              <Button variant="outline" onClick={() => window.confirm('Restaurar os dados de demonstração?') && resetarDemo()} style={{ alignSelf: 'flex-start' }}>
+                Restaurar dados
+              </Button>
+            </Card>
+          )}
         </div>
       )}
     </Page>

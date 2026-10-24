@@ -13,7 +13,7 @@ const renderOption = (opt) => {
  * Campo de formulário com rótulo em caixa alta. Aceita input, select ou textarea.
  * Em select, options pode ter grupos: [{ grupo: 'Sul', options: [...] }].
  */
-export default function Field({ label, as = 'input', options, error, children, ...props }) {
+export default function Field({ label, as = 'input', options, error, hint, children, ...props }) {
   const id = useId()
   const control = { id, 'aria-invalid': Boolean(error), ...props }
 
@@ -43,7 +43,7 @@ export default function Field({ label, as = 'input', options, error, children, .
       {/* com children (ex.: botões segmentados) o rótulo é só visual */}
       {children ? <span className="field-label">{label}</span> : <label className="field-label" htmlFor={id}>{label}</label>}
       {children ?? input}
-      {error && <small className="field-error">{error}</small>}
+      {error ? <small className="field-error">{error}</small> : hint && <small className="field-hint">{hint}</small>}
     </div>
   )
 }

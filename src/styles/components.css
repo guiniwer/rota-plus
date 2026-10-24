@@ -516,24 +516,18 @@
   color: var(--white);
 }
 
-/* ---------- Mapa ilustrativo ---------- */
-.map {
+/* ---------- Mapa (Leaflet) ---------- */
+.mapa-wrap {
   position: relative;
   width: 100%;
-  overflow: hidden;
-  border-radius: 14px;
-  background: #1e1238;
-}
-.map > svg {
-  display: block;
-  width: 100%;
-  height: 100%;
 }
 .map-overlay {
   position: absolute;
+  z-index: 500; /* acima das camadas do Leaflet */
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  pointer-events: none;
 }
 .map-chip {
   display: inline-flex;
@@ -545,9 +539,36 @@
   border: 1px solid var(--line);
   font-size: 12px;
   font-weight: 600;
+  pointer-events: auto;
 }
-.map-marker {
+.mapa-pin {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--cor);
+  border: 3px solid #fff;
+  color: #fff;
+  font: 800 12px var(--font);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
   cursor: pointer;
+}
+.mapa-pin.ponto {
+  border-width: 2px;
+}
+.mapa-pin.base {
+  border-radius: 8px;
+  font-size: 10px;
+}
+.mapa-pin.veiculo {
+  border-color: var(--cor);
+  background: #fff;
+  color: var(--cor);
+  font-size: 15px;
+}
+.mapa-pin.selecionado {
+  outline: 4px solid rgba(232, 86, 166, 0.55);
 }
 
 /* ---------- Modal ---------- */
@@ -763,22 +784,6 @@ a.user-card.active {
   background: var(--card);
   color: var(--white);
 }
-.rota-pin {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--pink);
-  border: 3px solid #fff;
-  color: #fff;
-  font: 800 13px var(--font);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-}
-.rota-pin.base {
-  background: var(--violet);
-  font-size: 10px;
-}
 .rota-kpis {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -849,4 +854,72 @@ a.user-card.active {
   .rota-kpis strong {
     font-size: 15px;
   }
+}
+
+/* ---------- QR Code ---------- */
+.qr {
+  display: inline-block;
+  flex: none;
+  padding: 6px;
+  border-radius: 12px;
+  background: #fff;
+}
+.qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- Código (chaves de API, exemplos) ---------- */
+.codigo {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #0c0618;
+  border: 1px solid var(--line);
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--white);
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow-x: auto;
+}
+.field-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.comprovante-img {
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #fff;
+}
+.comprovante-img.assinatura {
+  max-height: 120px;
+}
+
+/* ---------- Conversa da entrega ---------- */
+.conversa {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px;
+}
+.balao {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 14px 14px 14px 4px;
+  background: var(--card-2);
+  align-self: flex-start;
+}
+.balao.minha {
+  align-self: flex-end;
+  border-radius: 14px 14px 4px 14px;
+  background: color-mix(in srgb, var(--pink) 22%, var(--card-2));
 }

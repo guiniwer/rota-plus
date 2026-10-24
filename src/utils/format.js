@@ -26,3 +26,14 @@ export function maskDocumento(value) {
     .replace(/(\d{3})(\d)/, '$1/$2')
     .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
 }
+
+/** 93.8 → "93,8%"; null → "—" */
+export const pct = (n) => (n == null ? '—' : `${n.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`)
+
+/** Diferença em pontos percentuais com seta: "▲ 3,1 p.p." */
+export function deltaPp(atual, anterior) {
+  if (atual == null || anterior == null) return null
+  const d = Math.round((atual - anterior) * 10) / 10
+  if (d === 0) return '= período anterior'
+  return `${d > 0 ? '▲' : '▼'} ${Math.abs(d).toLocaleString('pt-BR')} p.p. vs. período anterior`
+}

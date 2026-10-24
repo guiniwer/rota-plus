@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
@@ -6,6 +6,8 @@ import Field from '../../components/ui/Field'
 import OptionCard from '../../components/ui/OptionCard'
 import Segmented from '../../components/ui/Segmented'
 import { useApp } from '../../context/AppContext'
+import { AuthApi } from '../../services/api'
+import { documentoValido } from '../../utils/documento'
 import { maskDocumento } from '../../utils/format'
 import { INICIO, papelDe } from '../../utils/papel'
 
@@ -17,10 +19,22 @@ export default function Cadastro() {
   const { cadastrar, toast } = useApp()
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const [perfil, setPerfil] = useState(params.get('perfil') === 'empresa' ? 'empresa' : 'cliente')
-  const [funcao, setFuncao] = useState('admin') // só para empresa: 'admin' | 'entregador'
+  const tokenConvite = params.get('convite')
+  const [perfil, setPerfil] = useState(params.get('perfil') === 'empresa' || tokenConvite ? 'empresa' : 'cliente')
+  const [funcao, setFuncao] = useState(tokenConvite ? 'entregador' : 'admin') // só para empresa: 'admin' | 'entregador'
+  const [convite, setConvite] = useState(null) // { empresa, cnpj, email } quando veio por link de convite
   const [form, setForm] = useState({ nome: '', responsavel: '', email: '', documento: '', fantasia: '', segmento: SEGMENTOS[0], telefone: '', veiculo: VEICULOS[0], senha: '', confirma: '', aceite: false })
   const [erros, setErros] = useState({})
+
+  useEffect(() => {
+    if (!tokenConvite) return
+    AuthApi.convite(tokenConvite)
+      .then((c) => {
+        setConvite(c)
+        setForm((f) => ({ ...f, documento: maskDocumento(c.cnpj), email: c.email ?? f.email }))
+      })
+      .catch((err) => setErros({ geral: err.message }))
+  }, [tokenConvite])
 
   const empresa = perfil === 'empresa'
   const admin = empresa && funcao === 'admin'
@@ -39,6 +53,7 @@ export default function Cadastro() {
     if (!form.email.includes('@')) n.email = 'E-mail inválido.'
     const digitos = form.documento.replace(/\D/g, '').length
     if (empresa ? digitos !== 14 : ![11, 14].includes(digitos)) n.documento = empresa ? 'CNPJ deve ter 14 dígitos.' : 'CPF (11) ou CNPJ (14 dígitos).'
+    else if (!documentoValido(form.documento)) n.documento = empresa ? 'CNPJ inválido (confira os dígitos).' : 'CPF/CNPJ inválido (confira os dígitos).'
     if (form.senha.length < 6) n.senha = 'Mínimo de 6 caracteres.'
     if (form.senha !== form.confirma) n.confirma = 'As senhas não conferem.'
     if (!form.aceite) n.aceite = 'É preciso aceitar os termos.'
@@ -46,13 +61,13 @@ export default function Cadastro() {
     if (Object.keys(n).length) return
 
     try {
-      const u = await cadastrar({ perfil, funcao: empresa ? funcao : undefined, ...form })
+      const u = await cadastrar({ perfil, funcao: empresa ? funcao : undefined, ...form, convite: entregador && convite ? tokenConvite : undefined })
       navigate(INICIO[papelDe(u)])
       toast('Conta criada com sucesso! Bem-vindo(a) à Rota+.')
     } catch (err) {
       // erro de e-mail ou CNPJ aparece no próprio campo; os demais, embaixo do formulário
-      if (err.status === 409) setErros({ email: err.message })
-      else if (err.status === 404) setErros({ documento: err.message })
+      // a API indica o campo com problema (e-mail já usado, CNPJ já cadastrado ou inexistente…)
+      if (err.campo && ['email', 'documento', 'nome', 'senha', 'responsavel'].includes(err.campo)) setErros({ [err.campo]: err.message })
       else setErros({ geral: err.message })
     }
   }
@@ -65,17 +80,22 @@ export default function Cadastro() {
             <h2 style={{ fontSize: 28, fontWeight: 800 }}>Cadastrar-se</h2>
             <p className="muted">Do envio à entrega, tudo sob controle.</p>
           </div>
-          <Segmented
+          {!convite && <Segmented
             value={perfil}
             onChange={(p) => (setPerfil(p), setErros({}))}
             options={[
               { value: 'cliente', label: 'Usuário' },
               { value: 'empresa', label: 'Empresa' },
             ]}
-          />
+          />}
         </div>
+        {convite && (
+          <p className="small" style={{ padding: 12, borderRadius: 12, background: 'var(--card-2)' }}>
+            Convite para a equipe de entregas de <strong>{convite.empresa}</strong>. Crie seu acesso de entregador abaixo.
+          </p>
+        )}
         <form className="stack-sm" style={{ gap: 16 }} onSubmit={registrar} noValidate>
-          {empresa && (
+          {empresa && !convite && (
             <div className="field">
               <span className="field-label">Você é</span>
               <div className="grid-2" style={{ gap: 12 }}>
@@ -98,7 +118,7 @@ export default function Cadastro() {
           )}
           <div className="grid-form">
             <Field label={admin ? 'Nome da empresa' : 'Nome completo'} value={form.nome} onChange={set('nome')} error={erros.nome} />
-            <Field label={entregador ? 'CNPJ da empresa em que trabalha' : empresa ? 'CNPJ' : 'CPF / CNPJ'} value={form.documento} onChange={set('documento')} error={erros.documento} inputMode="numeric" />
+            <Field label={entregador ? 'CNPJ da empresa em que trabalha' : empresa ? 'CNPJ' : 'CPF / CNPJ'} value={form.documento} onChange={set('documento')} error={erros.documento} inputMode="numeric" disabled={Boolean(convite)} />
             {admin && <Field label="Nome do administrador" value={form.responsavel} onChange={set('responsavel')} error={erros.responsavel} />}
             {admin && <Field label="Nome fantasia" value={form.fantasia} onChange={set('fantasia')} />}
             <Field label={empresa ? 'E-mail corporativo' : 'E-mail'} type="email" value={form.email} onChange={set('email')} error={erros.email} />

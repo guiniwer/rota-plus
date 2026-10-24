@@ -8,21 +8,22 @@ import EmptyState from '../../components/ui/EmptyState'
 import Field from '../../components/ui/Field'
 import Icon from '../../components/ui/Icon'
 import ListItem from '../../components/ui/ListItem'
-import MapView, { MapChip } from '../../components/ui/MapView'
 import Stepper from '../../components/ui/Stepper'
+import MapaEntrega from '../../components/entregas/MapaEntrega'
 import { EntregaBadge } from '../../components/entregas/StatusBadge'
 import { useApp, useEntregasDoCliente } from '../../context/AppContext'
 import { ETAPAS, STATUS_ENTREGA } from '../../utils/status'
+import { data, previsaoTexto, relativo } from '../../utils/tempo'
 
 const ATALHOS = [
-  { to: '/cliente/novo-pedido', icon: 'plus', titulo: 'Novo pedido', texto: 'Envie um pacote em poucos passos' },
-  { to: '/cliente/acompanhar', icon: 'truck', titulo: 'Minhas entregas', texto: 'Veja suas entregas em andamento' },
-  { to: '/cliente/previsao', icon: 'map', titulo: 'Mapa', texto: 'Rotas e localização em tempo real' },
-  { to: '/cliente/historico', icon: 'clock', titulo: 'Histórico', texto: 'Suas movimentações registradas' },
+  { to: '/cliente/novo-pedido', icon: 'plus', titulo: 'Novo pedido', texto: 'Cote e envie um pacote' },
+  { to: '/cliente/acompanhar', icon: 'truck', titulo: 'Acompanhar', texto: 'Entregador no mapa e chegada' },
+  { to: '/cliente/previsao', icon: 'clock', titulo: 'Previsão', texto: 'Horário estimado de chegada' },
+  { to: '/cliente/historico', icon: 'list', titulo: 'Histórico', texto: 'Todos os seus envios' },
 ]
 
 export default function ClienteInicio() {
-  const { usuario, notificacoes, toast } = useApp()
+  const { usuario, notificacoes } = useApp()
   const entregas = useEntregasDoCliente()
   const navigate = useNavigate()
   const [codigo, setCodigo] = useState('')
@@ -32,7 +33,7 @@ export default function ClienteInicio() {
     e.preventDefault()
     const achada = entregas.find((x) => x.id.toUpperCase() === codigo.trim().toUpperCase())
     if (achada) navigate(`/cliente/status/${achada.id}`)
-    else toast('Código não encontrado entre as suas entregas.')
+    else navigate(`/rastreio?codigo=${encodeURIComponent(codigo.trim().toUpperCase())}`)
   }
 
   return (
@@ -56,18 +57,14 @@ export default function ClienteInicio() {
               <div className="row wrap">
                 <Icon name="box" size={18} color="var(--pink)" />
                 <strong className="pink">{emAndamento.id}</strong>
-                <span className="muted">· previsão {emAndamento.previsao}</span>
+                <span className="muted">· {previsaoTexto(emAndamento)}</span>
               </div>
-              <div className="row wrap">
+              <div className="row wrap small">
                 <strong>{emAndamento.origem}</strong>
                 <Icon name="arrow" size={18} color="var(--muted)" />
                 <strong>{emAndamento.destino}</strong>
               </div>
-              <MapView progress={emAndamento.progresso} height={240}>
-                <MapChip style={{ top: 12, left: 12 }}>
-                  <Icon name="truck" size={16} color="var(--pink)" /> {STATUS_ENTREGA[emAndamento.status].label}
-                </MapChip>
-              </MapView>
+              <MapaEntrega entrega={emAndamento} height={240} />
               <Stepper steps={ETAPAS} current={STATUS_ENTREGA[emAndamento.status].etapa} />
               <div className="row wrap">
                 <Button onClick={() => navigate(`/cliente/acompanhar/${emAndamento.id}`)}>Acompanhar entrega</Button>
@@ -93,25 +90,30 @@ export default function ClienteInicio() {
             </form>
           </Card>
           <Card title="Notificações" action={<Link className="link" to="/cliente/notificacoes">Ver todas</Link>}>
+            {notificacoes.length === 0 && <p className="small muted">Nenhuma notificação.</p>}
             {notificacoes.slice(0, 3).map((n) => (
-              <ListItem key={n.id} icon={n.icon} color={n.cor} title={n.titulo} subtitle={n.texto} meta={n.quando} />
+              <ListItem key={n.id} icon={n.icon} color={n.cor} title={n.titulo} subtitle={n.texto} meta={relativo(n.criadoEm)} onClick={n.link ? () => navigate(n.link) : undefined} />
             ))}
           </Card>
         </div>
       </div>
 
       <Card title="Entregas recentes" action={<Button variant="outline" size="sm" onClick={() => navigate('/cliente/historico')}>Ver histórico</Button>}>
-        <DataTable
-          rows={entregas.slice(0, 5)}
-          onRowClick={(e) => navigate(`/cliente/status/${e.id}`)}
-          columns={[
-            { key: 'id', label: 'Código', render: (e) => <strong>{e.id}</strong> },
-            { key: 'rota', label: 'Rota', render: (e) => `${e.origem} → ${e.destino}` },
-            { key: 'criadoEm', label: 'Data' },
-            { key: 'tipo', label: 'Tipo', render: (e) => `${e.modalidade === 'expressa' ? 'Expressa' : 'Normal'} · ${e.rastreio === 'gps' ? 'GPS' : 'CD'}` },
-            { key: 'status', label: 'Status', render: (e) => <EntregaBadge status={e.status} /> },
-          ]}
-        />
+        {entregas.length === 0 ? (
+          <EmptyState icon="box" title="Você ainda não fez pedidos" />
+        ) : (
+          <DataTable
+            rows={entregas.slice(0, 5)}
+            onRowClick={(e) => navigate(`/cliente/status/${e.id}`)}
+            columns={[
+              { key: 'id', label: 'Código', render: (e) => <strong>{e.id}</strong> },
+              { key: 'rota', label: 'Rota', render: (e) => `${e.origem} → ${e.destino}` },
+              { key: 'criadoEm', label: 'Data', render: (e) => data(e.criadoEm) },
+              { key: 'tipo', label: 'Transportadora', render: (e) => `${e.transportadora} · ${e.rastreio === 'gps' ? 'GPS' : 'CD'}` },
+              { key: 'status', label: 'Status', render: (e) => <EntregaBadge status={e.status} /> },
+            ]}
+          />
+        )}
       </Card>
     </Page>
   )

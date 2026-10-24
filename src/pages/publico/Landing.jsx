@@ -1,15 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Field from '../../components/ui/Field'
 import Icon from '../../components/ui/Icon'
 import KeyValue from '../../components/ui/KeyValue'
-import MapView, { MapChip } from '../../components/ui/MapView'
+import Mapa, { MapChip } from '../../components/mapa/Mapa'
 import Segmented from '../../components/ui/Segmented'
 import { brl, num } from '../../utils/format'
 import RotaCidades from '../../components/entregas/RotaCidades'
 import { useApp } from '../../context/AppContext'
+import { EmpresaApi } from '../../services/api'
 import { nomeCidade } from '../../data/cidades'
 import { TAXA_EXPRESSA, TAXA_GPS, calcularFrete } from '../../utils/frete'
 
@@ -44,6 +45,15 @@ export default function Landing() {
     altura: '15',
   })
 
+  const [empresas, setEmpresas] = useState([])
+  useEffect(() => {
+    EmpresaApi.publicas().then(setEmpresas).catch(() => {})
+  }, [])
+  const marcadores = useMemo(
+    () => empresas.filter((e) => e.lat != null).map((e) => ({ id: e.id, lat: e.lat, lng: e.lng, forma: 'base', cor: 'var(--violet)', texto: e.nome[0], popup: [e.nome, e.base, e.segmento].filter(Boolean) })),
+    [empresas],
+  )
+
   const set = (campo) => (e) => setCotacao((c) => ({ ...c, [campo]: e?.target ? e.target.value : e }))
   // recalcula a cada alteração — sem precisar clicar em "calcular"
   const resultado = useMemo(() => calcularFrete({ ...cotacao, valorNF: 0 }), [cotacao])
@@ -68,14 +78,11 @@ export default function Landing() {
             </Button>
           </div>
         </div>
-        <MapView progress={0.55} height={320}>
-          <MapChip style={{ top: 16, left: 16 }}>
-            <Icon name="truck" size={16} color="var(--pink)" /> Motorista a caminho
+        <Mapa marcadores={marcadores} height={320} rotulo="Transportadoras na Rota+">
+          <MapChip style={{ top: 16, left: 56 }}>
+            <Icon name="truck" size={16} color="var(--pink)" /> {empresas.length} transportadora(s) na plataforma
           </MapChip>
-          <MapChip style={{ bottom: 16, left: 16 }}>
-            <Icon name="clock" size={16} color="var(--green)" /> Chega em ~25 min
-          </MapChip>
-        </MapView>
+        </Mapa>
       </section>
 
       <section className="public-section" id="quem-somos">

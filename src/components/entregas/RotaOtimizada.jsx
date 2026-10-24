@@ -1,13 +1,11 @@
-import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useApp } from '../../context/AppContext'
+import Mapa from '../mapa/Mapa'
 import Badge from '../ui/Badge'
 import Button from '../ui/Button'
 import Card from '../ui/Card'
 import Icon from '../ui/Icon'
 import { EntregaBadge } from './StatusBadge'
-
-// o Leaflet só é baixado quando o mapa aparece
-const MapaRota = lazy(() => import('./MapaRota'))
 
 const km = (v) => `${v.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km`
 const minutos = (m) => (m >= 60 ? `${Math.floor(m / 60)} h ${Math.round(m % 60)} min` : `${Math.round(m)} min`)
@@ -39,6 +37,18 @@ export default function RotaOtimizada({ entregadorId, chave, onRota, compacto = 
     calcular()
   }, [calcular, chave])
 
+  const marcadores = useMemo(
+    () =>
+      rota?.paradas.length
+        ? [
+            { id: 'base', lat: rota.base.lat, lng: rota.base.lng, forma: 'base', cor: 'var(--violet)', texto: rota.base.atual ? 'GPS' : 'CD', popup: [rota.base.nome] },
+            ...rota.paradas.map((p, i) => ({ id: p.id, lat: p.lat, lng: p.lng, forma: 'numero', texto: i + 1, popup: [`${i + 1}. ${p.cliente}`, p.destino] })),
+          ]
+        : [],
+    [rota],
+  )
+  const linhas = useMemo(() => (rota?.trajeto?.length > 1 ? [{ pontos: rota.trajeto }] : []), [rota])
+
   return (
     <Card
       title="Rota otimizada"
@@ -68,12 +78,10 @@ export default function RotaOtimizada({ entregadorId, chave, onRota, compacto = 
               <strong className="green">{rota.economiaKm >= 0.1 ? `− ${km(rota.economiaKm)}` : '—'}</strong>
             </div>
           </div>
-          <Suspense fallback={<div className="mapa-rota" style={{ height: compacto ? 260 : 300 }} />}>
-            <MapaRota base={rota.base} paradas={rota.paradas} trajeto={rota.trajeto} height={compacto ? 260 : 300} />
-          </Suspense>
+          <Mapa marcadores={marcadores} linhas={linhas} chaveAjuste={rota.paradas.map((p) => p.id).join(',')} height={compacto ? 260 : 300} rotulo="Mapa da rota otimizada" />
           <div className="row-between wrap small">
             <span className="muted">
-              Saída: {rota.base.nome} ·{' '}
+              Saída: {rota.base.atual ? 'sua posição atual (GPS)' : rota.base.nome} ·{' '}
               {rota.fonte === 'osrm' ? 'trajeto real pelas ruas (API OSRM / OpenStreetMap)' : 'estimativa offline (vizinho mais próximo + 2-opt)'}
             </span>
             <Badge tone={rota.fonte === 'osrm' ? 'success' : 'warning'}>{rota.fonte === 'osrm' ? 'OSRM' : 'Offline'}</Badge>

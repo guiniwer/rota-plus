@@ -11,6 +11,8 @@ import Segmented from '../../components/ui/Segmented'
 import { EntregaBadge } from '../../components/entregas/StatusBadge'
 import { useApp, useEntregasDoCliente } from '../../context/AppContext'
 import { brl } from '../../utils/format'
+import { STATUS_ENTREGA } from '../../utils/status'
+import { data, dataHora } from '../../utils/tempo'
 
 const FILTROS = [
   { value: 'todos', label: 'Todos' },
@@ -18,7 +20,7 @@ const FILTROS = [
   { value: 'andamento', label: 'Em andamento' },
   { value: 'cancelado', label: 'Cancelados' },
 ]
-const POR_PAGINA = 5
+const POR_PAGINA = 10
 
 export default function Historico() {
   const entregas = useEntregasDoCliente()
@@ -51,8 +53,11 @@ export default function Historico() {
   }
 
   const exportar = () => {
-    const linhas = [['Código', 'Origem', 'Destino', 'Data', 'Valor', 'Status'], ...filtradas.map((e) => [e.id, e.origem, e.destino, e.criadoEm, e.valor.toFixed(2), e.status])]
-    const csv = linhas.map((l) => l.map((c) => `"${c}"`).join(';')).join('\n')
+    const linhas = [
+      ['Código', 'Transportadora', 'Origem', 'Destino', 'Pedido em', 'Entregue em', 'Valor', 'Status'],
+      ...filtradas.map((e) => [e.id, e.transportadora, e.origem, e.destino, dataHora(e.criadoEm), e.entregueEm ? dataHora(e.entregueEm) : '', e.valor.toFixed(2).replace('.', ','), STATUS_ENTREGA[e.status].label]),
+    ]
+    const csv = '\uFEFF' + linhas.map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n')
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
     const a = Object.assign(document.createElement('a'), { href: url, download: 'historico-rota-plus.csv' })
     a.click()
@@ -83,7 +88,7 @@ export default function Historico() {
             columns={[
               { key: 'id', label: 'Código', render: (e) => <strong>{e.id}</strong> },
               { key: 'rota', label: 'Origem → destino', render: (e) => `${e.origem} → ${e.destino}` },
-              { key: 'criadoEm', label: 'Data' },
+              { key: 'criadoEm', label: 'Data', render: (e) => data(e.criadoEm) },
               { key: 'mod', label: 'Modalidade', render: (e) => `${e.modalidade === 'expressa' ? 'Expressa' : 'Normal'} · ${e.rastreio === 'gps' ? 'GPS' : 'CD'}` },
               { key: 'valor', label: 'Valor', render: (e) => brl(e.valor) },
               { key: 'status', label: 'Status', render: (e) => <EntregaBadge status={e.status} /> },

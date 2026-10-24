@@ -1,14 +1,14 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import { AlertasApi, AtivosApi, AuthApi, EntregasApi, GeralApi, RotasApi, tokenStorage } from '../services/api'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { AlertasApi, AtivosApi, AuthApi, EmpresaApi, EntregasApi, EquipeApi, GeralApi, LocalizacaoApi, RotasApi, tokenStorage, urlEventos } from '../services/api'
 import { papelDe } from '../utils/papel'
 
 const AppContext = createContext(null)
-const ATUALIZAR_A_CADA = 10_000 // ms — busca novidades no banco (ex.: status alterado pela empresa)
+const RESERVA_A_CADA = 60_000 // ms — busca de segurança caso o canal em tempo real caia
 
-/** Troca o item com o mesmo id dentro da lista. */
-const substituir = (lista, item) => lista.map((x) => (x.id === item.id ? item : x))
+/** Troca o item com o mesmo id dentro da lista (ou insere no início). */
+const substituir = (lista, item) => (lista.some((x) => x.id === item.id) ? lista.map((x) => (x.id === item.id ? item : x)) : [item, ...lista])
 
-/** Estado global da aplicação. Os dados vêm da API (Express + SQLite). */
+/** Estado global da aplicação. Os dados vêm da API (Express + SQLite) e são atualizados em tempo real (SSE). */
 export function AppProvider({ children }) {
   const [usuario, setUsuario] = useState(null)
   const [carregando, setCarregando] = useState(() => Boolean(tokenStorage.get()))
@@ -16,14 +16,26 @@ export function AppProvider({ children }) {
   const [ativos, setAtivos] = useState([])
   const [alertas, setAlertas] = useState([])
   const [equipe, setEquipe] = useState([])
+  const [posicoes, setPosicoes] = useState({ entregadores: [], rotas: {} })
   const [notificacoes, setNotificacoes] = useState([])
   const [preferencias, setPrefState] = useState({})
-  const [privacidade, setPrivState] = useState({})
+  const [empresa, setEmpresa] = useState(null)
+  const [tempoReal, setTempoReal] = useState(false)
   const [toastMsg, setToastMsg] = useState(null)
+  const ouvintes = useRef(new Set())
 
   const toast = useCallback((msg) => {
     setToastMsg(msg)
-    setTimeout(() => setToastMsg(null), 3200)
+    setTimeout(() => setToastMsg(null), 3600)
+  }, [])
+
+  const sair = useCallback(() => {
+    tokenStorage.clear()
+    setUsuario(null)
+    // não deixa dados de uma conta aparecerem para a próxima
+    ;[setEntregas, setAtivos, setAlertas, setEquipe, setNotificacoes].forEach((set) => set([]))
+    setEmpresa(null)
+    setPosicoes({ entregadores: [], rotas: {} })
   }, [])
 
   /** Executa uma chamada à API mostrando o erro em um toast. */
@@ -33,35 +45,43 @@ export function AppProvider({ children }) {
         return await fn()
       } catch (err) {
         toast(err.message)
-        if (err.status === 401) {
-          tokenStorage.clear()
-          setUsuario(null)
-        }
+        if (err.status === 401) sair()
         return null
       }
     },
-    [toast],
+    [toast, sair],
   )
 
-  // ---------- carregamento dos dados do usuário logado ----------
-  const carregarDados = useCallback(async (u) => {
-    const papel = papelDe(u)
-    if (papel === 'entregador') {
-      setEntregas(await EntregasApi.listar())
-    } else if (papel === 'empresa') {
-      const [e, a, al, eq, priv] = await Promise.all([EntregasApi.listar(), AtivosApi.listar(), AlertasApi.listar(), GeralApi.equipe(), GeralApi.config('privacidade')])
-      setEntregas(e)
-      setAtivos(a)
-      setAlertas(al)
-      setEquipe(eq)
-      setPrivState(priv)
-    } else {
-      const [e, n, pref] = await Promise.all([EntregasApi.listar(), GeralApi.notificacoes(), GeralApi.config('preferencias')])
-      setEntregas(e)
-      setNotificacoes(n)
-      setPrefState(pref)
-    }
-  }, [])
+  // ---------- carregamento por recurso ----------
+  const carregadores = useCallback(
+    (u) => {
+      const papel = papelDe(u)
+      return {
+        entregas: () => EntregasApi.listar().then(setEntregas),
+        notificacoes: () => GeralApi.notificacoes().then(setNotificacoes),
+        ...(papel === 'empresa' && {
+          ativos: () => AtivosApi.listar().then(setAtivos),
+          alertas: () => AlertasApi.listar().then(setAlertas),
+          equipe: () => EquipeApi.listar().then(setEquipe),
+          posicoes: () => LocalizacaoApi.equipe().then(setPosicoes),
+        }),
+      }
+    },
+    [],
+  )
+
+  const carregarDados = useCallback(
+    async (u) => {
+      const c = carregadores(u)
+      const papel = papelDe(u)
+      await Promise.all([
+        ...Object.values(c).map((f) => f()),
+        GeralApi.preferencias().then(setPrefState),
+        papel !== 'cliente' ? EmpresaApi.dados().then(setEmpresa) : null,
+      ])
+    },
+    [carregadores],
+  )
 
   // ao abrir o site, recupera a sessão salva
   useEffect(() => {
@@ -75,19 +95,41 @@ export function AppProvider({ children }) {
       .finally(() => setCarregando(false))
   }, [carregarDados])
 
-  // atualização periódica: mostra mudanças feitas por outros usuários
+  // ---------- tempo real: o servidor avisa o que mudou e buscamos só aquele recurso ----------
   useEffect(() => {
     if (!usuario) return undefined
-    const id = setInterval(() => {
-      const papel = papelDe(usuario)
-      const tarefas = [EntregasApi.listar().then(setEntregas)]
-      // a visão operacional também recebe as atualizações feitas pelos entregadores
-      if (papel === 'empresa') tarefas.push(AlertasApi.listar().then(setAlertas), AtivosApi.listar().then(setAtivos), GeralApi.equipe().then(setEquipe))
-      if (papel === 'cliente') tarefas.push(GeralApi.notificacoes().then(setNotificacoes))
-      Promise.all(tarefas).catch(() => {})
-    }, ATUALIZAR_A_CADA)
-    return () => clearInterval(id)
-  }, [usuario])
+    const c = carregadores(usuario)
+    const pendentes = new Map()
+    const recarregar = (recurso) => {
+      if (!c[recurso] || pendentes.has(recurso)) return
+      // agrupa várias mudanças seguidas em uma só busca
+      pendentes.set(recurso, setTimeout(() => {
+        pendentes.delete(recurso)
+        c[recurso]().catch(() => {})
+      }, 300))
+    }
+    const fonte = new EventSource(urlEventos())
+    fonte.onopen = () => setTempoReal(true)
+    fonte.onerror = () => setTempoReal(false)
+    fonte.onmessage = (ev) => {
+      const msg = JSON.parse(ev.data)
+      msg.recursos.forEach(recarregar)
+      ouvintes.current.forEach((fn) => fn(msg.recursos))
+    }
+    const reserva = setInterval(() => Object.keys(c).forEach(recarregar), RESERVA_A_CADA)
+    return () => {
+      fonte.close()
+      clearInterval(reserva)
+      pendentes.forEach((t) => clearTimeout(t))
+      setTempoReal(false)
+    }
+  }, [usuario, carregadores])
+
+  /** Permite que uma tela reaja a eventos (ex.: "posicoes", "mensagens:RT-123"). */
+  const ouvir = useCallback((fn) => {
+    ouvintes.current.add(fn)
+    return () => ouvintes.current.delete(fn)
+  }, [])
 
   // ---------- autenticação ----------
   const entrar = async (resposta) => {
@@ -103,16 +145,12 @@ export function AppProvider({ children }) {
   const atualizarPerfil = async (dados) => {
     const { usuario: u } = await AuthApi.atualizarPerfil(dados)
     setUsuario(u)
-    if (papelDe(u) !== 'cliente') EntregasApi.listar().then(setEntregas).catch(() => {})
     return u
   }
   const alterarSenha = (atual, nova) => AuthApi.alterarSenha(atual, nova)
   const logout = async () => {
     await AuthApi.logout().catch(() => {})
-    tokenStorage.clear()
-    setUsuario(null)
-    // não deixa dados de uma conta aparecerem para a próxima
-    ;[setEntregas, setAtivos, setAlertas, setEquipe, setNotificacoes].forEach((set) => set([]))
+    sair()
   }
 
   // ---------- notificações ----------
@@ -126,43 +164,20 @@ export function AppProvider({ children }) {
   }
 
   // ---------- entregas ----------
-  // cada entrega tem um ativo "Carga": quando a entrega muda, a lista de ativos do admin é recarregada
-  const recarregarAtivos = () => {
-    if (papelDe(usuario) === 'empresa') AtivosApi.listar().then(setAtivos).catch(() => {})
+  const atualizarEntrega = (e) => {
+    if (e) setEntregas((list) => substituir(list, e))
+    return e
   }
   /** Cria o pedido e devolve o código gerado pelo banco (ou null se falhar). */
-  const criarPedido = async (dados) => {
-    const nova = await executar(() => EntregasApi.criar(dados))
-    if (!nova) return null
-    setEntregas((list) => [nova, ...list])
-    recarregarAtivos()
-    if (usuario?.perfil === 'cliente') GeralApi.notificacoes().then(setNotificacoes).catch(() => {})
-    return nova.id
-  }
-  const atualizarStatusEntrega = async (id, status, descricao) => {
-    const e = await executar(() => EntregasApi.status(id, status, descricao))
-    if (e) {
-      setEntregas((list) => substituir(list, e))
-      recarregarAtivos()
-    }
-    return e
-  }
-  const atribuirEntrega = async (id, entregadorId) => {
-    const e = await executar(() => EntregasApi.atribuir(id, entregadorId || null))
-    if (e) {
-      setEntregas((list) => substituir(list, e))
-      recarregarAtivos()
-    }
-    return e
-  }
+  const criarPedido = async (dados) => (await executar(() => EntregasApi.criar(dados).then(atualizarEntrega)))?.id ?? null
+  const atualizarStatusEntrega = (id, status, descricao, extra = {}) => executar(() => EntregasApi.status(id, { status, descricao, ...extra }).then(atualizarEntrega))
+  const atribuirEntrega = (id, entregadorId) => executar(() => EntregasApi.atribuir(id, entregadorId || null).then(atualizarEntrega))
   /** Rota otimizada (null se falhar). O admin informa o entregador. */
   const otimizarRota = (entregadorId) => executar(() => RotasApi.otimizada(entregadorId))
   const avaliarEntrega = async (id, avaliacao) => {
-    const e = await executar(() => EntregasApi.avaliar(id, avaliacao))
-    if (e) {
-      setEntregas((list) => substituir(list, e))
-      toast('Obrigado! Sua avaliação foi registrada.')
-    }
+    const e = await executar(() => EntregasApi.avaliar(id, avaliacao).then(atualizarEntrega))
+    if (e) toast('Obrigado! Sua avaliação foi registrada.')
+    return e
   }
   /** Rastreio público (sem login). Retorna a entrega ou null. */
   const rastrear = (codigo, documento) => EntregasApi.rastrear(codigo, documento).catch(() => null)
@@ -174,14 +189,9 @@ export function AppProvider({ children }) {
     return a
   }
   const registrarMovimentacao = (id, mov) => atualizarAtivo(() => AtivosApi.movimentar(id, mov))
-  const transferirAtivo = (id, responsavel) => atualizarAtivo(() => AtivosApi.transferir(id, responsavel))
+  const transferirAtivo = (id, responsavelId) => atualizarAtivo(() => AtivosApi.transferir(id, responsavelId))
   const marcarExtraviado = (id) => atualizarAtivo(() => AtivosApi.extraviado(id))
-  const cadastrarAtivo = async (dados) => {
-    const a = await executar(() => AtivosApi.criar(dados))
-    if (!a) return null
-    setAtivos((list) => [a, ...list])
-    return a.id
-  }
+  const cadastrarAtivo = async (dados) => (await atualizarAtivo(() => AtivosApi.criar(dados)))?.id ?? null
 
   // ---------- alertas ----------
   const atualizarAlerta = async (fn) => {
@@ -193,27 +203,34 @@ export function AppProvider({ children }) {
   const resolverAlerta = (id) => atualizarAlerta(() => AlertasApi.resolver(id))
   const alternarPasso = (id, ordem) => atualizarAlerta(() => AlertasApi.alternarPasso(id, ordem))
 
-  // ---------- configurações (aceitam objeto ou função, como o setState) ----------
-  const salvarConfig = (chave, setter, atual) => (valorOuFn) => {
-    const novo = typeof valorOuFn === 'function' ? valorOuFn(atual) : valorOuFn
-    setter(novo)
-    executar(() => GeralApi.salvarConfig(chave, novo))
+  // ---------- preferências e empresa (aceitam objeto ou função, como o setState) ----------
+  const setPreferencias = (valorOuFn) => {
+    const novo = typeof valorOuFn === 'function' ? valorOuFn(preferencias) : valorOuFn
+    setPrefState(novo)
+    executar(() => GeralApi.salvarPreferencias(novo))
   }
-  const setPreferencias = salvarConfig('preferencias', setPrefState, preferencias)
-  const setPrivacidade = salvarConfig('privacidade', setPrivState, privacidade)
+  const privacidade = empresa?.privacidade ?? {}
+  const setPrivacidade = (valorOuFn) => {
+    const novo = typeof valorOuFn === 'function' ? valorOuFn(privacidade) : valorOuFn
+    setEmpresa((e) => ({ ...e, privacidade: novo }))
+    executar(() => EmpresaApi.privacidade(novo))
+  }
+  const recarregarEmpresa = () => EmpresaApi.dados().then(setEmpresa).catch(() => {})
 
   const resetarDemo = async () => {
     const ok = await executar(() => GeralApi.resetDemo())
     if (!ok) return
-    tokenStorage.clear()
-    setUsuario(null)
-    toast('Banco restaurado com os dados de demonstração. Entre novamente.')
+    sair()
+    toast('Dados de demonstração restaurados. Entre novamente.')
   }
 
   const value = {
     usuario,
     papel: papelDe(usuario),
     carregando,
+    tempoReal,
+    ouvir,
+    executar,
     login,
     cadastrar,
     logout,
@@ -221,6 +238,7 @@ export function AppProvider({ children }) {
     alterarSenha,
     otimizarRota,
     entregas,
+    atualizarEntrega,
     criarPedido,
     atualizarStatusEntrega,
     atribuirEntrega,
@@ -236,12 +254,15 @@ export function AppProvider({ children }) {
     resolverAlerta,
     alternarPasso,
     equipe,
-    entregadores: equipe.filter((p) => p.usuarioId), // colaboradores com login de entregador
+    entregadores: equipe, // a equipe de campo são os usuários com função "entregador"
+    posicoes,
     notificacoes,
     marcarLida,
     marcarTodasLidas,
     preferencias,
     setPreferencias,
+    empresa,
+    recarregarEmpresa,
     privacidade,
     setPrivacidade,
     toast,
@@ -263,4 +284,16 @@ export function useApp() {
 // eslint-disable-next-line react-refresh/only-export-components
 export function useEntregasDoCliente() {
   return useApp().entregas
+}
+
+/** Executa fn quando o servidor avisar que um dos recursos mudou. */
+// eslint-disable-next-line react-refresh/only-export-components
+export function useEventos(recursos, fn) {
+  const { ouvir } = useApp()
+  const ref = useRef(fn)
+  useEffect(() => {
+    ref.current = fn
+  })
+  const chave = recursos.join(',')
+  useEffect(() => ouvir((mudou) => mudou.some((r) => chave.split(',').includes(r)) && ref.current()), [ouvir, chave])
 }

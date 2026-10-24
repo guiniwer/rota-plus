@@ -1,10 +1,11 @@
 /** Interruptor liga/desliga com título e descrição opcionais. */
-export default function Toggle({ checked, onChange, title, description }) {
+export default function Toggle({ checked, onChange, title, description, disabled }) {
   const button = (
     <button
       type="button"
       role="switch"
-      aria-checked={checked}
+      aria-checked={Boolean(checked)}
+      disabled={disabled}
       aria-label={title}
       className={`toggle ${checked ? 'on' : ''}`}
       onClick={() => onChange(!checked)}

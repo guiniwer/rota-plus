@@ -1,6 +1,6 @@
 // Toda entrega também é um ativo (categoria "Carga"), rastreado na tabela de ativos.
 // O ativo guarda só o TIPO genérico da carga (Caixa, Palete…), nunca o conteúdo enviado.
-import { nowLabel } from '../src/utils/format.js'
+import { agora } from './tempo.js'
 import { STATUS_ENTREGA } from '../src/utils/status.js'
 
 /** Classifica a carga em um tipo genérico de ativo. */
@@ -25,38 +25,41 @@ function situacao(e) {
     case 'cancelado':
       return { status: 'inativo', local: 'Pedido cancelado' }
     case 'tentativa':
-      return { status: 'em_uso', local: `Retorno ao CD · ${e.destino}` }
+      return { status: 'em_uso', local: `Retorno à base · ${e.destino}` }
     default: // transito, saiu, atrasado
       return { status: 'em_uso', local: `Em rota → ${e.destino}` }
   }
 }
 
-const historico = (db, id, titulo, descricao, cor = null, data = nowLabel()) =>
-  db.prepare('INSERT INTO ativo_historico (ativo_id, titulo, descricao, data, cor) VALUES (?, ?, ?, ?, ?)').run(id, titulo, descricao, data, cor)
+export const registrarHistorico = (db, ativoId, titulo, descricao, cor = null, quando = agora()) =>
+  db.prepare('INSERT INTO ativo_historico (ativo_id, titulo, descricao, cor, criado_em) VALUES (?, ?, ?, ?, ?)').run(ativoId, titulo, descricao, cor, quando)
 
 /** Cria o ativo "Carga" de uma entrega recém-cadastrada (linha da tabela entregas). */
-export function criarAtivoDaEntrega(db, e, valor = 0) {
+export function criarAtivoDaEntrega(db, e, quando = e.criado_em) {
   const numero = e.id.replace(/\D/g, '')
   let id = `CRG-${numero}`
   while (db.prepare('SELECT 1 FROM ativos WHERE id = ?').get(id)) id = `CRG-${numero}-${Math.floor(Math.random() * 90 + 10)}`
   const gps = e.rastreio === 'gps'
   const { status, local } = situacao(e)
-  const ordem = (db.prepare('SELECT MAX(ordem) AS m FROM ativos').get().m ?? 0) + 1
-  db.prepare(`INSERT INTO ativos (id, nome, tipo, entrega_id, identificacao, bateria, responsavel, local, ultima_leitura, status, valor, x, y, uso, ordem)
-    VALUES (?, ?, 'Carga', ?, ?, ?, ?, ?, 'agora', ?, ?, ?, ?, ?, ?)`).run(
-    id, tipoAtivoDaCarga(e.tipo_carga), e.id, gps ? 'GPS' : 'QR', gps ? 100 : null, e.responsavel ?? null, local, status, Number(valor) || 0,
-    150 + Math.random() * 700, 80 + Math.random() * 380, JSON.stringify(Array(14).fill(0)), ordem,
+  db.prepare(`INSERT INTO ativos (id, empresa_id, nome, tipo, entrega_id, identificacao, responsavel, responsavel_id, local, lat, lng, ultima_leitura_em, status, valor, criado_em)
+    VALUES (?, ?, ?, 'Carga', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    id, e.empresa_id, tipoAtivoDaCarga(e.tipo_carga), e.id, gps ? 'GPS' : 'QR', e.responsavel ?? null, e.entregador_id ?? null, local,
+    e.origem_lat ?? null, e.origem_lng ?? null, quando, status, Number(e.valor_nf) || 0, quando,
   )
-  historico(db, id, 'Carga registrada', `Vinculada à entrega ${e.id} · etiqueta ${gps ? 'GPS' : 'QR'}`, 'var(--green)')
+  registrarHistorico(db, id, 'Carga registrada', `Vinculada à entrega ${e.id} · etiqueta ${gps ? 'QR + GPS do entregador' : 'QR'}`, 'var(--green)', quando)
   return id
 }
 
 /** Atualiza o ativo da entrega depois de uma mudança de status ou de entregador. */
-export function sincronizarAtivo(db, entregaId, { titulo, descricao, cor } = {}) {
+export function sincronizarAtivo(db, entregaId, { titulo, descricao, cor, quando = agora(), lat, lng } = {}) {
   const e = db.prepare('SELECT * FROM entregas WHERE id = ?').get(entregaId)
-  const ativo = db.prepare('SELECT id FROM ativos WHERE entrega_id = ?').get(entregaId)
+  const ativo = db.prepare('SELECT id, lat, lng FROM ativos WHERE entrega_id = ?').get(entregaId)
   if (!e || !ativo) return
   const { status, local } = situacao(e)
-  db.prepare("UPDATE ativos SET status = ?, local = ?, responsavel = ?, ultima_leitura = 'agora' WHERE id = ?").run(status, local, e.responsavel, ativo.id)
-  historico(db, ativo.id, titulo ?? STATUS_ENTREGA[e.status]?.label ?? e.status, descricao ?? local, cor ?? null)
+  // posição: a informada (GPS do entregador); entregue → endereço de destino
+  const pos = lat != null ? { lat, lng } : e.status === 'entregue' ? { lat: e.lat, lng: e.lng } : { lat: ativo.lat, lng: ativo.lng }
+  db.prepare('UPDATE ativos SET status = ?, local = ?, responsavel = ?, responsavel_id = ?, lat = ?, lng = ?, ultima_leitura_em = ? WHERE id = ?').run(
+    status, local, e.responsavel, e.entregador_id, pos.lat ?? null, pos.lng ?? null, quando, ativo.id,
+  )
+  registrarHistorico(db, ativo.id, titulo ?? STATUS_ENTREGA[e.status]?.label ?? e.status, descricao ?? local, cor ?? null, quando)
 }

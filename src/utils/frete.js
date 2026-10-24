@@ -72,6 +72,7 @@ export function calcularFrete({ origem, destino, tipoCarga, comprimento, largura
     pesoTaxado,
     itens: [...itens, { label: 'ICMS (12%)', valor: icms }],
     total,
+    prazoDias: prazo[1], // usado para calcular a data-limite do pedido
     prazoTexto: prazo[0] === prazo[1] ? `${prazo[0]} dia${prazo[0] > 1 ? 's' : ''} út${prazo[0] > 1 ? 'eis' : 'il'}` : `${prazo[0]} a ${prazo[1]} dias úteis`,
   }
 }

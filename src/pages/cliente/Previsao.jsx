@@ -3,31 +3,34 @@ import Page from '../../components/layout/Page'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
-import Field from '../../components/ui/Field'
-import Icon from '../../components/ui/Icon'
 import KpiCard from '../../components/ui/KpiCard'
-import ListItem from '../../components/ui/ListItem'
-import MapView, { MapChip } from '../../components/ui/MapView'
 import Modal from '../../components/ui/Modal'
-import ProgressBar from '../../components/ui/ProgressBar'
+import Timeline from '../../components/ui/Timeline'
+import { Instrucoes, Reagendar } from '../../components/entregas/AcoesCliente'
 import EntregaSelector from '../../components/entregas/EntregaSelector'
-import { useApp } from '../../context/AppContext'
+import MapaEntrega from '../../components/entregas/MapaEntrega'
+import useAcompanhamento from '../../hooks/useAcompanhamento'
 import useEntregaSelecionada from '../../hooks/useEntregaSelecionada'
+import { duracao, hora, previsaoTexto, relativo } from '../../utils/tempo'
 
 const ativa = (e) => !['entregue', 'cancelado'].includes(e.status)
-const JANELAS = ['Amanhã, 08:00–12:00', 'Amanhã, 13:00–18:00', 'Sábado, 08:00–12:00']
+const MOTIVO = {
+  sem_entregador: 'Assim que um entregador sair com a sua encomenda, a previsão aparece aqui.',
+  aguardando_coleta: 'A previsão em minutos aparece quando o entregador sair para a entrega.',
+  por_etapas: 'Esta entrega é rastreada por etapas; vale o prazo combinado.',
+  privacidade: 'A transportadora não compartilha a localização em tempo real; vale o prazo combinado.',
+  sem_sinal: 'O GPS do entregador está sem sinal. A previsão volta quando ele reconectar.',
+}
 
 export default function Previsao() {
   const { entrega, lista } = useEntregaSelecionada(ativa)
-  const { toast } = useApp()
-  const [segundos, setSegundos] = useState(25 * 60)
-  const [reagendar, setReagendar] = useState(false)
-  const [janela, setJanela] = useState(JANELAS[0])
-
-  // contagem regressiva da previsão
+  const a = useAcompanhamento(entrega?.id)
+  const [modal, setModal] = useState(null)
+  const [, setTique] = useState(0)
+  // atualiza a contagem a cada 30 s
   useEffect(() => {
-    const id = setInterval(() => setSegundos((s) => Math.max(0, s - 1)), 1000)
-    return () => clearInterval(id)
+    const t = setInterval(() => setTique((x) => x + 1), 30_000)
+    return () => clearInterval(t)
   }, [])
 
   if (!entrega) {
@@ -40,65 +43,56 @@ export default function Previsao() {
     )
   }
 
-  const minutos = Math.ceil(segundos / 60)
-  const pct = 100 - (segundos / (25 * 60)) * 28 // começa em 72% do trajeto
-  const km = ((segundos / (25 * 60)) * 4.2).toLocaleString('pt-BR', { maximumFractionDigits: 1 })
+  const restante = a?.eta ? Math.max(1, Math.round((Date.parse(a.eta.chegada) - Date.now()) / 60_000)) : null
 
   return (
-    <Page title="Previsão de chegada" subtitle="Acompanhe o tempo estimado" actions={<EntregaSelector entregas={lista} selecionada={entrega} basePath="/cliente/previsao" />}>
+    <Page title="Previsão de chegada" subtitle={`${entrega.id} · ${entrega.transportadora}`} actions={<EntregaSelector entregas={lista} selecionada={entrega} basePath="/cliente/previsao" />}>
       <div className="grid-aside">
         <Card style={{ alignItems: 'center', textAlign: 'center' }}>
-          <span className="label">Tempo estimado</span>
-          <div>
-            <span className="eta-number">{minutos}</span> <strong className="pink" style={{ fontSize: 28 }}>min</strong>
-          </div>
-          <p className="muted">Entrega prevista: {entrega.previsao}</p>
-          <ProgressBar value={pct} height={10} />
-          <div className="row-between small grey" style={{ width: '100%' }}>
-            <span>Coletado</span>
-            <span>Você está a 2 paradas</span>
-          </div>
+          <span className="label">{restante ? 'Tempo estimado' : 'Prazo combinado'}</span>
+          {restante ? (
+            <>
+              <div>
+                <span className="eta-number">{restante < 60 ? restante : duracao(restante)}</span> {restante < 60 && <strong className="pink" style={{ fontSize: 28 }}>min</strong>}
+              </div>
+              <p className="muted">Chegada por volta de {hora(a.eta.chegada)} · prazo: {previsaoTexto(entrega)}</p>
+              <span className="small grey">{a.eta.fonte === 'osrm' ? 'Calculado pelas ruas (OSRM) a partir do GPS do entregador' : 'Estimativa por distância a partir do GPS do entregador'}</span>
+            </>
+          ) : (
+            <>
+              <strong style={{ fontSize: 28 }} className="pink">
+                {previsaoTexto(entrega)}
+              </strong>
+              <p className="muted">{a ? MOTIVO[a.motivo] : 'Calculando…'}</p>
+            </>
+          )}
         </Card>
         <div className="stack">
-          <KpiCard label="Distância restante" value={`${km} km`} delta="Atualizado agora" deltaColor="var(--muted)" />
-          <KpiCard label="Status do trânsito" value="Moderado" delta="+4 min por congestionamento" deltaColor="var(--amber)" />
+          <KpiCard label="Distância restante" value={a?.eta ? `${a.eta.distanciaKm.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km` : '—'} delta={a?.entregador?.atualizadoEm ? `GPS ${relativo(a.entregador.atualizadoEm)}` : 'sem posição em tempo real'} deltaColor="var(--muted)" />
+          <KpiCard label="Paradas antes da sua" value={a?.eta ? a.paradasAntes : '—'} delta="pela rota planejada do entregador" deltaColor="var(--muted)" />
         </div>
       </div>
       <div className="grid-aside">
         <Card compact>
-          <MapView progress={pct / 100} height={320}>
-            <MapChip style={{ top: 12, left: 12 }}>
-              <Icon name="pin" size={16} color="var(--pink)" /> Av. Rebouças
-            </MapChip>
-          </MapView>
+          <MapaEntrega entrega={entrega} acompanhamento={a} height={320} />
         </Card>
         <Card title="Atualizações recentes">
-          <ListItem icon="truck" title="O entregador está na Av. Rebouças" subtitle="Próxima parada: você" />
-          <ListItem icon="box" color="var(--purple)" title="Pacote passou pela triagem final" subtitle="CD Pinheiros" />
-          <ListItem icon="bell" color="var(--green)" title="Avisaremos 10 min antes" subtitle="Por push e WhatsApp" />
+          <Timeline items={entrega.eventos.slice(0, 4)} />
           <strong>Não vai estar em casa?</strong>
           <div className="grid-2" style={{ gap: 12 }}>
-            <Button variant="secondary" onClick={() => setReagendar(true)}>
+            <Button variant="secondary" onClick={() => setModal('reagendar')}>
               Reagendar
             </Button>
-            <Button variant="secondary" onClick={() => toast('Entregador avisado: deixar com o vizinho do nº 1002.')}>
-              Deixar com vizinho
+            <Button variant="secondary" onClick={() => setModal('instrucoes')}>
+              Deixar recado
             </Button>
           </div>
         </Card>
       </div>
 
-      <Modal title="Reagendar entrega" open={reagendar} onClose={() => setReagendar(false)}>
-        <Field label="Nova janela" as="select" value={janela} onChange={(e) => setJanela(e.target.value)} options={JANELAS} />
-        <Button
-          block
-          onClick={() => {
-            setReagendar(false)
-            toast(`Entrega reagendada para ${janela}.`)
-          }}
-        >
-          Confirmar
-        </Button>
+      <Modal title={modal === 'reagendar' ? 'Reagendar entrega' : 'Recado para o entregador'} open={Boolean(modal)} onClose={() => setModal(null)}>
+        {modal === 'reagendar' && <Reagendar entrega={entrega} onFechar={() => setModal(null)} />}
+        {modal === 'instrucoes' && <Instrucoes entrega={entrega} onFechar={() => setModal(null)} />}
       </Modal>
     </Page>
   )

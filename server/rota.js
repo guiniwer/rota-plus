@@ -2,29 +2,17 @@
 // 1º tenta a API pública do OSRM (serviço "trip", sobre o OpenStreetMap), que devolve a ordem
 // das paradas e o trajeto real pelas ruas. Sem internet, usa uma heurística local
 // (vizinho mais próximo + 2-opt) com distâncias de Haversine × fator de estrada.
+// A base de saída é a posição atual do entregador (GPS) ou a base cadastrada dele / da empresa.
 import { FATOR_ESTRADA, haversineKm } from '../src/utils/frete.js'
 
 const OSRM_URL = process.env.OSRM_URL ?? 'https://router.project-osrm.org'
 const VELOCIDADE_URBANA = 30 // km/h, para estimar o tempo na heurística local
-
-/** Bases de saída das rotas; usamos a mais próxima das paradas. */
-export const BASES = [
-  { nome: 'CD Recife', lat: -8.089, lng: -34.933 },
-  { nome: 'CD Pinheiros (SP)', lat: -23.567, lng: -46.692 },
-]
+const ROTEAMENTO_DESLIGADO = process.env.OSRM === 'off'
 
 const km = (a, b) => haversineKm(a, b) * FATOR_ESTRADA
 
 /** Distância total de um caminho aberto que começa na base. */
 export const distanciaDoCaminho = (base, paradas) => paradas.reduce((s, p, i) => s + km(i ? paradas[i - 1] : base, p), 0)
-
-function baseMaisProxima(paradas) {
-  const centro = {
-    lat: paradas.reduce((s, p) => s + p.lat, 0) / paradas.length,
-    lng: paradas.reduce((s, p) => s + p.lng, 0) / paradas.length,
-  }
-  return BASES.reduce((melhor, b) => (km(b, centro) < km(melhor, centro) ? b : melhor))
-}
 
 /** Heurística local: vizinho mais próximo seguido de melhorias 2-opt. */
 export function otimizarLocal(base, paradas) {
@@ -66,6 +54,7 @@ export function otimizarLocal(base, paradas) {
 
 /** Chama o serviço "trip" do OSRM. Lança erro se a API não responder. */
 async function otimizarOsrm(base, paradas) {
+  if (ROTEAMENTO_DESLIGADO) throw new Error('roteamento desligado (OSRM=off)')
   const pontos = [base, ...paradas].map((p) => `${p.lng.toFixed(6)},${p.lat.toFixed(6)}`).join(';')
   const url = `${OSRM_URL}/trip/v1/driving/${pontos}?source=first&roundtrip=false&destination=any&overview=full&geometries=geojson`
   const res = await fetch(url, { signal: AbortSignal.timeout(6000) })
@@ -86,10 +75,11 @@ async function otimizarOsrm(base, paradas) {
   }
 }
 
-/** Calcula a melhor ordem de visita das paradas ({ id, lat, lng, ... }). */
-export async function otimizarRota(paradas) {
-  if (!paradas.length) return { fonte: 'local', base: BASES[0], paradas: [], distanciaKm: 0, duracaoMin: 0, economiaKm: 0, trajeto: [] }
-  const base = baseMaisProxima(paradas)
+/**
+ * Calcula a melhor ordem de visita das paradas ({ id, lat, lng, ... }) saindo de "base" ({ nome, lat, lng }).
+ */
+export async function otimizarRota(paradas, base) {
+  if (!paradas.length) return { fonte: 'local', base, paradas: [], distanciaKm: 0, duracaoMin: 0, economiaKm: 0, trajeto: [], mapsUrl: null }
   let resultado
   try {
     resultado = await otimizarOsrm(base, paradas)
@@ -105,4 +95,42 @@ export async function otimizarRota(paradas) {
     `&origin=${base.lat},${base.lng}&destination=${ultima.lat},${ultima.lng}` +
     (meio.length ? `&waypoints=${meio.reverse().map((p) => `${p.lat},${p.lng}`).join('|')}` : '')
   return { ...resultado, base, economiaKm, mapsUrl }
+}
+
+/** Trajeto pelas ruas passando pelos pontos na ordem dada (para ETA). */
+export async function rotaEntre(pontos) {
+  try {
+    if (ROTEAMENTO_DESLIGADO) throw new Error('desligado')
+    const coords = pontos.map((p) => `${p.lng.toFixed(6)},${p.lat.toFixed(6)}`).join(';')
+    const res = await fetch(`${OSRM_URL}/route/v1/driving/${coords}?overview=full&geometries=geojson`, { signal: AbortSignal.timeout(6000) })
+    const data = await res.json()
+    if (data.code !== 'Ok') throw new Error(data.message ?? data.code)
+    const r = data.routes[0]
+    return { fonte: 'osrm', distanciaKm: r.distance / 1000, duracaoMin: r.duration / 60, trajeto: r.geometry.coordinates.map(([lng, lat]) => [lat, lng]) }
+  } catch {
+    const distanciaKm = pontos.slice(1).reduce((s, p, i) => s + km(pontos[i], p), 0)
+    return { fonte: 'local', distanciaKm, duracaoMin: (distanciaKm / VELOCIDADE_URBANA) * 60, trajeto: pontos.map((p) => [p.lat, p.lng]) }
+  }
+}
+
+/** Menor distância (km) de um ponto até um trajeto [[lat, lng], ...] (projeção local plana). */
+export function distanciaAteTrajetoKm(p, trajeto) {
+  if (!trajeto?.length) return Infinity
+  const kx = 111.32 * Math.cos((p.lat * Math.PI) / 180)
+  const ky = 110.57
+  const xy = ([lat, lng]) => [(lng - p.lng) * kx, (lat - p.lat) * ky]
+  let melhor = Infinity
+  for (let i = 0; i < trajeto.length; i++) {
+    const [ax, ay] = xy(trajeto[i])
+    if (i === trajeto.length - 1) {
+      melhor = Math.min(melhor, Math.hypot(ax, ay))
+      break
+    }
+    const [bx, by] = xy(trajeto[i + 1])
+    const dx = bx - ax
+    const dy = by - ay
+    const t = dx || dy ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / (dx * dx + dy * dy))) : 0
+    melhor = Math.min(melhor, Math.hypot(ax + t * dx, ay + t * dy))
+  }
+  return melhor
 }

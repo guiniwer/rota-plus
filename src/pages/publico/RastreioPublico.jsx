@@ -1,33 +1,51 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
 import Field from '../../components/ui/Field'
 import RastreioResultado from '../../components/entregas/RastreioResultado'
 import { useApp } from '../../context/AppContext'
+import { EntregasApi } from '../../services/api'
 import { maskDocumento } from '../../utils/format'
+import { CLIENTE_DEMO } from '../../data/contasDemo'
 
 /** Rastreio sem login: código do localizador + CPF/CNPJ. */
 export default function RastreioPublico() {
   const { rastrear, toast } = useApp()
-  const [codigo, setCodigo] = useState('')
+  const [params] = useSearchParams()
+  const [codigo, setCodigo] = useState(params.get('codigo') ?? '')
   const [documento, setDocumento] = useState('')
   const [resultado, setResultado] = useState(undefined) // undefined = ainda não buscou
-  const [contato, setContato] = useState('')
-
+  const [consultado, setConsultado] = useState('') // documento da busca que deu certo
+  const [email, setEmail] = useState('')
   const [buscando, setBuscando] = useState(false)
+  const [mostrarExemplo, setMostrarExemplo] = useState(false)
+
+  useEffect(() => {
+    // o exemplo só aparece enquanto a empresa de demonstração existir
+    EntregasApi.rastrear('RT-90827-BR', CLIENTE_DEMO.documento).then(() => setMostrarExemplo(true)).catch(() => {})
+  }, [])
 
   // consulta pública na API: só devolve a entrega se código e documento conferirem
   const localizar = async (e) => {
     e.preventDefault()
     setBuscando(true)
-    setResultado(await rastrear(codigo, documento))
+    const r = await rastrear(codigo.trim(), documento)
+    setResultado(r)
+    setConsultado(r ? documento : '')
     setBuscando(false)
   }
 
-  const usarExemplo = () => {
-    setCodigo('RT-90827-BR')
-    setDocumento('123.456.789-00')
+  const avisar = async (e) => {
+    e.preventDefault()
+    try {
+      await EntregasApi.inscreverAvisos({ codigo: resultado.id, documento: consultado, email })
+      toast(`Pronto! Enviaremos as próximas atualizações para ${email}.`)
+      setEmail('')
+    } catch (err) {
+      toast(err.message)
+    }
   }
 
   return (
@@ -49,15 +67,17 @@ export default function RastreioPublico() {
               {buscando ? 'Buscando…' : 'Localizar encomenda'}
             </Button>
           </form>
-          <button type="button" className="btn btn-secondary btn-sm" style={{ alignSelf: 'flex-start' }} onClick={usarExemplo}>
-            Usar exemplo (RT-90827-BR)
-          </button>
+          {mostrarExemplo && (
+            <button type="button" className="btn btn-secondary btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => (setCodigo('RT-90827-BR'), setDocumento(CLIENTE_DEMO.documento))}>
+              Usar exemplo da demonstração (RT-90827-BR)
+            </button>
+          )}
         </Card>
 
         {resultado === null && (
           <Card>
             <EmptyState icon="alert" title="Encomenda não encontrada">
-              Confira o código e o documento. O CPF/CNPJ deve ser o do destinatário ou de quem contratou o envio.
+              Confira o código e o documento. O CPF/CNPJ deve ser o de quem contratou o envio ou o informado pela transportadora.
             </EmptyState>
           </Card>
         )}
@@ -65,17 +85,11 @@ export default function RastreioPublico() {
         {resultado && (
           <RastreioResultado
             entrega={resultado}
+            documento={consultado}
             aside={
-              <Card title="Receber avisos desta entrega">
-                <form
-                  className="stack-sm"
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    toast(`Avisos ativados para ${contato}.`)
-                    setContato('')
-                  }}
-                >
-                  <Field label="WhatsApp ou e-mail" value={contato} onChange={(e) => setContato(e.target.value)} required />
+              <Card title="Receber avisos por e-mail">
+                <form className="stack-sm" onSubmit={avisar}>
+                  <Field label="E-mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
                   <Button type="submit" variant="violet" block>
                     Ativar avisos
                   </Button>

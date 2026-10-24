@@ -10,17 +10,21 @@ import Icon from '../../components/ui/Icon'
 import KpiCard from '../../components/ui/KpiCard'
 import Modal from '../../components/ui/Modal'
 import Person from '../../components/ui/Person'
+import QrCode from '../../components/ui/QrCode'
 import SearchInput from '../../components/ui/SearchInput'
 import Segmented from '../../components/ui/Segmented'
 import { AtivoBadge } from '../../components/entregas/StatusBadge'
 import { useApp } from '../../context/AppContext'
 import { CATEGORIAS_ATIVO, COR_STATUS_ATIVO, SUGESTOES_TIPO_ATIVO } from '../../utils/ativos'
 import { STATUS_ATIVO, TIPO_ATIVO_ICON } from '../../utils/status'
+import { relativo } from '../../utils/tempo'
+
+const POR_PAGINA = 100
 
 const FILTROS = ['Todos', ...CATEGORIAS_ATIVO]
 // cargas entram sozinhas (cada entrega vira um ativo); aqui só se cadastram os bens da empresa
 const CATEGORIAS_CADASTRO = CATEGORIAS_ATIVO.filter((c) => c !== 'Carga')
-const NOVO = { nome: '', tipo: 'Equipamento', identificacao: 'QR', local: 'Almoxarifado CD', valor: '' }
+const NOVO = { nome: '', tipo: 'Equipamento', identificacao: 'QR', local: '', valor: '' }
 
 export default function Ativos() {
   const { ativos, cadastrarAtivo, toast } = useApp()
@@ -30,6 +34,8 @@ export default function Ativos() {
   const [busca, setBusca] = useState('')
   const [modal, setModal] = useState(false)
   const [novo, setNovo] = useState(NOVO)
+  const [limite, setLimite] = useState(POR_PAGINA)
+  const [etiquetas, setEtiquetas] = useState(false)
 
   const filtrados = useMemo(() => {
     const q = busca.toLowerCase()
@@ -53,6 +59,8 @@ export default function Ativos() {
 
   const perdidos = ativos.filter((a) => ['extraviado', 'sem_sinal'].includes(a.status)).length
   const cargas = ativos.filter((a) => a.tipo === 'Carga')
+  // etiquetas: os itens filtrados (sem as cargas, que usam a etiqueta da entrega)
+  const paraEtiquetar = filtrados.filter((a) => a.tipo !== 'Carga')
 
   return (
     <Page
@@ -60,7 +68,7 @@ export default function Ativos() {
       subtitle="Veículos, equipamentos, ferramentas e todas as cargas das entregas"
       actions={
         <>
-          <Button variant="secondary" icon="qr" onClick={() => window.print()}>
+          <Button variant="secondary" icon="qr" onClick={() => setEtiquetas(true)}>
             Imprimir etiquetas
           </Button>
           <Button icon="plus" onClick={() => setModal(true)}>
@@ -90,7 +98,7 @@ export default function Ativos() {
         </div>
         {filtrados.length ? (
           <DataTable
-            rows={filtrados}
+            rows={filtrados.slice(0, limite)}
             onRowClick={(a) => navigate(`/empresa/ativos/${a.id}`)}
             columns={[
               {
@@ -112,14 +120,37 @@ export default function Ativos() {
               { key: 'identificacao', label: 'ID / sinal', render: (a) => (a.bateria != null ? `${a.identificacao} · ${a.bateria}%` : a.identificacao) },
               { key: 'resp', label: 'Responsável', render: (a) => <Person name={a.responsavel} /> },
               { key: 'local', label: 'Localização' },
-              { key: 'ultimaLeitura', label: 'Última leitura' },
+              { key: 'ultimaLeitura', label: 'Última leitura', render: (a) => relativo(a.ultimaLeituraEm) },
               { key: 'status', label: 'Status', render: (a) => <AtivoBadge status={a.status} /> },
             ]}
           />
         ) : (
           <EmptyState title="Nenhum ativo encontrado" />
         )}
+        {filtrados.length > limite && (
+          <Button variant="secondary" onClick={() => setLimite((l) => l + POR_PAGINA)}>
+            Mostrar mais ({filtrados.length - limite} restantes)
+          </Button>
+        )}
       </Card>
+
+      <Modal title={`Etiquetas QR · ${paraEtiquetar.length} ativo(s)`} wide open={etiquetas} onClose={() => setEtiquetas(false)}>
+        <p className="small muted">Os itens seguem os filtros da lista. Imprima em papel adesivo; a tela Escanear lê estes códigos pela câmera.</p>
+        <div className="etiquetas">
+          {paraEtiquetar.map((a) => (
+            <div key={a.id} className="etiqueta">
+              <QrCode value={a.id} size={96} />
+              <div>
+                <strong>{a.id}</strong>
+                <span>{a.nome}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+        <Button icon="download" onClick={() => window.print()} disabled={!paraEtiquetar.length}>
+          Imprimir
+        </Button>
+      </Modal>
 
       <Modal title="Cadastrar ativo" open={modal} onClose={() => setModal(false)}>
         <form className="stack-sm" style={{ gap: 16 }} onSubmit={cadastrar}>
@@ -132,12 +163,12 @@ export default function Ativos() {
               ))}
             </datalist>
             <Field label="Identificação" as="select" value={novo.identificacao} onChange={(e) => setNovo({ ...novo, identificacao: e.target.value })} options={['QR', 'RFID', 'GPS']} />
-            <Field label="Local inicial" value={novo.local} onChange={(e) => setNovo({ ...novo, local: e.target.value })} />
+            <Field label="Local inicial" value={novo.local} onChange={(e) => setNovo({ ...novo, local: e.target.value })} placeholder="Vazio = base da empresa" />
             <Field label="Valor (R$)" type="number" min="0" value={novo.valor} onChange={(e) => setNovo({ ...novo, valor: e.target.value })} />
           </div>
           <p className="small muted">
-            Cadastre pelo tipo genérico (ex.: “Gerador de energia”), sem marca ou modelo. As cargas das entregas entram automaticamente. Dica: QR Code para itens de menor valor e GPS para
-            veículos e equipamentos caros.
+            Cadastre pelo tipo genérico (ex.: “Gerador de energia”), sem marca ou modelo. As cargas das entregas entram automaticamente. Para GPS, gere o token do rastreador na ficha do ativo
+            depois de cadastrar.
           </p>
           <Button type="submit" block>
             Cadastrar

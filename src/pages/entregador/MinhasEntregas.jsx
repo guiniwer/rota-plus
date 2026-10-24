@@ -6,13 +6,19 @@ import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Field from '../../components/ui/Field'
 import Icon from '../../components/ui/Icon'
+import Modal from '../../components/ui/Modal'
 import ProgressBar from '../../components/ui/ProgressBar'
 import Segmented from '../../components/ui/Segmented'
 import SignaturePad from '../../components/ui/SignaturePad'
-import Toggle from '../../components/ui/Toggle'
+import Conversa from '../../components/entregas/Conversa'
 import RotaOtimizada from '../../components/entregas/RotaOtimizada'
 import { EntregaBadge } from '../../components/entregas/StatusBadge'
 import { useApp } from '../../context/AppContext'
+import useFilaOffline from '../../hooks/useFilaOffline'
+import useRastreamentoGps from '../../hooks/useRastreamentoGps'
+import { EmpresaApi, EntregasApi } from '../../services/api'
+import { comprimirFoto } from '../../utils/imagem'
+import { hora, previsaoTexto, relativo } from '../../utils/tempo'
 
 const RESULTADOS = [
   { value: 'entregue', label: 'Entregue' },
@@ -30,96 +36,139 @@ const PROXIMO = {
   tentativa: { status: 'saiu', label: 'Nova tentativa', descricao: 'Nova tentativa de entrega' },
 }
 
-const FORM_VAZIO = { resultado: 'entregue', recebedor: '', documento: '', foto: null, assinou: false, conferido: false }
+const FORM_VAZIO = { resultado: 'entregue', recebedor: '', documento: '', foto: null, assinatura: null, conferido: false }
+const GPS_TEXTO = {
+  iniciando: 'Obtendo localização…',
+  ativo: 'GPS ativo — a central e o cliente veem sua posição durante a rota.',
+  negado: 'Permissão de localização negada. Libere nas configurações do navegador para a central acompanhar a rota.',
+  indisponivel: 'Este aparelho não tem GPS disponível no navegador.',
+  fora_do_turno: 'Fora do expediente: sua localização não é enviada (LGPD).',
+  erro: 'Não foi possível ler o GPS. Tentando de novo…',
+}
+const digitos = (s = '') => s.replace(/\D/g, '')
+
+function TermoCiencia({ empresa, onAceitar }) {
+  return (
+    <Card highlight title="Uso da sua localização">
+      <p className="small">
+        {empresa.nome} usa a localização do seu aparelho <strong>somente durante o expediente ({empresa.turnoInicio}–{empresa.turnoFim})</strong> para acompanhar as entregas, calcular a previsão de
+        chegada para o cliente e alertar a central sobre atrasos e desvios.
+      </p>
+      <p className="small muted">
+        Fora do expediente nada é enviado. {empresa.privacidade.anonimizar90 ? 'O histórico de posições é apagado após 90 dias. ' : ''}O cliente só vê sua posição enquanto a entrega dele está a caminho.
+      </p>
+      <Button onClick={onAceitar}>Estou ciente — ativar GPS</Button>
+    </Card>
+  )
+}
 
 /**
- * Tela do entregador: só as entregas atribuídas a ele, na ordem da rota otimizada.
- * Cada atualização de status vai para a API e aparece na visão operacional do administrador.
+ * App do entregador: só as entregas atribuídas a ele, na ordem da rota otimizada.
+ * Envia o GPS do aparelho, guarda as ações feitas sem internet e envia ao reconectar.
  */
 export default function MinhasEntregas() {
-  const { usuario, entregas, atualizarStatusEntrega, toast } = useApp()
+  const { usuario, entregas, empresa, recarregarEmpresa, atualizarEntrega, executar, toast } = useApp()
   const [params, setParams] = useSearchParams()
-  const [online, setOnline] = useState(true)
-  const [fila, setFila] = useState([]) // atualizações feitas sem conexão
   const [form, setForm] = useState(FORM_VAZIO)
-  const [ordemRota, setOrdemRota] = useState([]) // ids na ordem otimizada
+  const [ordemRota, setOrdemRota] = useState([])
+  const [conversa, setConversa] = useState(null)
+  const [enviando, setEnviando] = useState(false)
+
+  const precisaTermo = empresa?.privacidade?.termoCiencia && !empresa?.termoAceitoEm
+  const gps = useRastreamentoGps(empresa, { ativo: Boolean(empresa) && !precisaTermo })
+  const { online, fila, enviar } = useFilaOffline(
+    usuario.id,
+    {
+      status: (i) => EntregasApi.status(i.entregaId, { status: i.status, descricao: i.descricao, lat: i.lat, lng: i.lng, quando: i.quando }).then(atualizarEntrega),
+      comprovante: (i) => EntregasApi.comprovante(i.entregaId, { ...i.dados, quando: i.quando }).then(atualizarEntrega),
+    },
+    {
+      onSincronizado: (n) => toast(`${n} registro(s) feito(s) sem internet foram enviados.`),
+      onErro: (err, item) => toast(`${item.entregaId}: ${err.message}`),
+    },
+  )
 
   const pendentes = entregas.filter((e) => !['entregue', 'cancelado'].includes(e.status))
-  const concluidas = entregas.filter((e) => e.status === 'entregue')
-  const total = pendentes.length + concluidas.length
+  const concluidasHoje = entregas.filter((e) => e.status === 'entregue' && new Date(e.entregueEm).toDateString() === new Date().toDateString())
+  const total = pendentes.length + concluidasHoje.length
   const posicao = (id) => (ordemRota.includes(id) ? ordemRota.indexOf(id) : Infinity)
-  const paradas = [...pendentes].sort((a, b) => posicao(a.id) - posicao(b.id))
+  const paradas = [...pendentes].sort((a, b) => posicao(a.id) - posicao(b.id) || Date.parse(a.prazoLimite) - Date.parse(b.prazoLimite))
   const proxima = paradas[0]
   const registrando = entregas.find((e) => e.id === params.get('registrar'))
-  const naFila = (id) => fila.some((f) => f.id === id)
-  // refaz a rota quando entra ou sai uma parada (não a cada mudança de status)
+  const naFila = (id) => fila.some((f) => f.entregaId === id)
   const chaveRota = pendentes.map((e) => e.id).sort().join(',')
 
-  const enviar = (id, status, descricao, msg) => {
-    if (online) {
-      atualizarStatusEntrega(id, status, descricao)
-      toast(msg ?? 'Status atualizado — a central já está vendo.')
-    } else {
-      setFila((q) => [...q, { id, status, descricao }])
-      toast('Sem conexão: atualização salva no aparelho.')
+  const mudar = async (e, status, descricao) => {
+    const pos = await gps.posicaoAgora()
+    try {
+      const r = await enviar('status', { entregaId: e.id, status, descricao, lat: pos?.lat ?? null, lng: pos?.lng ?? null })
+      if (r.enviado) atualizarEntrega(r.resultado)
+      toast(r.enviado ? 'Status atualizado — a central já está vendo.' : 'Sem internet: salvo no aparelho, será enviado ao reconectar.')
+    } catch (err) {
+      toast(err.message)
     }
-  }
-
-  // ao voltar a conexão, envia o que ficou na fila
-  const alternarConexao = (conectado) => {
-    setOnline(conectado)
-    if (conectado && fila.length) {
-      fila.forEach((f) => atualizarStatusEntrega(f.id, f.status, f.descricao))
-      toast(`${fila.length} atualização(ões) sincronizada(s).`)
-      setFila([])
-    }
-  }
-
-  const abrirRegistro = (id) => {
-    setForm(FORM_VAZIO)
-    setParams({ registrar: id })
   }
 
   const avancar = (e) => {
     const passo = PROXIMO[e.status]
     if (!passo) return
-    if (passo.registrar) abrirRegistro(e.id)
-    else enviar(e.id, passo.status, passo.descricao)
+    if (passo.registrar) {
+      setForm(FORM_VAZIO)
+      setParams({ registrar: e.id })
+    } else mudar(e, passo.status, passo.descricao)
   }
 
-  const escolherFoto = (e) => {
-    const arquivo = e.target.files?.[0]
-    if (arquivo) setForm((f) => ({ ...f, foto: URL.createObjectURL(arquivo) }))
-  }
-
-  const finalizar = (e) => {
-    e.preventDefault()
-    if (form.resultado === 'entregue' && (!form.foto || !form.assinou || !form.recebedor.trim())) {
-      toast('Para concluir: foto, assinatura e nome do recebedor.')
-      return
+  const escolherFoto = async (ev) => {
+    const arquivo = ev.target.files?.[0]
+    if (!arquivo) return
+    try {
+      const foto = await comprimirFoto(arquivo)
+      setForm((f) => ({ ...f, foto }))
+    } catch (err) {
+      toast(err.message)
     }
-    const status = form.resultado === 'entregue' ? 'entregue' : 'tentativa'
-    const descricao =
-      form.resultado === 'entregue'
-        ? `Recebido por ${form.recebedor} · foto + assinatura + GPS`
-        : form.resultado === 'avaria'
-          ? 'Entregue com avaria registrada'
-          : 'Destinatário ausente — nova tentativa agendada'
-    enviar(registrando.id, status, descricao, 'Entrega registrada. Cliente e central notificados.')
-    setParams({})
   }
+
+  const finalizar = async (ev) => {
+    ev.preventDefault()
+    if (form.resultado !== 'tentativa' && (!form.foto || !form.assinatura || !form.recebedor.trim())) return toast('Para concluir: foto, assinatura e nome do recebedor.')
+    setEnviando(true)
+    const pos = await gps.posicaoAgora()
+    const dados = { resultado: form.resultado, recebedor: form.recebedor, documento: form.documento, foto: form.foto, assinatura: form.assinatura, conferido: form.conferido, lat: pos?.lat ?? null, lng: pos?.lng ?? null, precisao: pos?.precisao ?? null }
+    try {
+      const r = await enviar('comprovante', { entregaId: registrando.id, dados })
+      if (r.enviado) atualizarEntrega(r.resultado)
+      toast(r.enviado ? `Registrado${pos ? ' com GPS' : ' (sem GPS)'}. Cliente e central notificados.` : 'Sem internet: comprovante salvo no aparelho, será enviado ao reconectar.')
+      setParams({})
+    } catch (err) {
+      toast(err.message)
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  const aceitarTermo = async () => {
+    if (await executar(() => EmpresaApi.aceitarTermo())) recarregarEmpresa()
+  }
+
+  if (!empresa) return <Page title="Minhas entregas" subtitle="Carregando…" />
 
   return (
-    <Page title="Minhas entregas" subtitle={`${usuario?.nome} · ${usuario?.veiculo ?? 'sem veículo'} · rota do dia`}>
+    <Page title="Minhas entregas" subtitle={`${usuario.nome} · ${usuario.veiculo ?? 'sem veículo'} · ${empresa.nome}`}>
+      {precisaTermo && <TermoCiencia empresa={empresa} onAceitar={aceitarTermo} />}
       <Card compact>
         <div className="row wrap">
           <Icon name={online ? 'activity' : 'wifioff'} color={online ? 'var(--green)' : 'var(--amber)'} />
-          <span className="grow">
-            {online ? 'Conectado — cada atualização chega na hora à central.' : `Sem conexão. ${fila.length} atualização(ões) serão enviadas ao reconectar.`}
-          </span>
-          <Toggle checked={online} onChange={alternarConexao} />
-          <span className="small muted">Simular conexão</span>
+          <span className="grow">{online ? 'Conectado — cada atualização chega na hora à central.' : `Sem internet. ${fila.length} registro(s) guardado(s) no aparelho serão enviados ao reconectar.`}</span>
+          {fila.length > 0 && online && <Badge tone="warning">Enviando {fila.length}…</Badge>}
         </div>
+        {!precisaTermo && (
+          <div className="row wrap small">
+            <Icon name="pin" size={16} color={gps.estado === 'ativo' ? 'var(--green)' : 'var(--amber)'} />
+            <span className={`grow ${gps.estado === 'ativo' ? 'muted' : 'amber'}`}>{GPS_TEXTO[gps.estado]}</span>
+            {gps.posicao && <span className="grey">±{gps.posicao.precisao} m{gps.ultimoEnvio ? ` · enviado ${relativo(gps.ultimoEnvio)}` : ''}</span>}
+          </div>
+        )}
       </Card>
 
       <div className="grid-aside entregador-grid">
@@ -127,36 +176,51 @@ export default function MinhasEntregas() {
           <Card compact>
             <div className="row-between">
               <strong>
-                {concluidas.length} de {total} entregas concluídas
+                {concluidasHoje.length} de {total} entregas de hoje concluídas
               </strong>
-              <strong className="pink">{Math.round((concluidas.length / Math.max(1, total)) * 100)}%</strong>
+              <strong className="pink">{Math.round((concluidasHoje.length / Math.max(1, total)) * 100)}%</strong>
             </div>
-            <ProgressBar value={(concluidas.length / Math.max(1, total)) * 100} />
+            <ProgressBar value={(concluidasHoje.length / Math.max(1, total)) * 100} />
           </Card>
 
           {proxima && !registrando && (
             <Card highlight>
               <div className="row-between wrap">
                 <span className="label pink">Próxima parada</span>
-                <Badge tone={proxima.status === 'atrasado' ? 'danger' : 'pink'}>Janela {proxima.janela}</Badge>
+                <Badge tone={proxima.atrasada ? 'danger' : 'pink'}>{proxima.janela ? `Janela ${proxima.janela}` : `Até ${hora(proxima.prazoLimite)}`}</Badge>
               </div>
               <h2 style={{ fontSize: 20, fontWeight: 800 }}>{proxima.cliente}</h2>
               <p className="muted">{proxima.destino}</p>
+              {proxima.instrucoes && (
+                <p className="small">
+                  <Icon name="alert" size={14} color="var(--amber)" /> {proxima.instrucoes}
+                </p>
+              )}
               <div className="row wrap small grey">
                 <span>{proxima.id}</span>
                 <EntregaBadge status={proxima.status} />
+                {proxima.atrasada && <span className="red">prazo vencido</span>}
               </div>
-              <div className="grid-2" style={{ gap: 12 }}>
-                <a className="btn btn-secondary" href={`https://www.google.com/maps/search/?api=1&query=${proxima.lat != null ? `${proxima.lat},${proxima.lng}` : encodeURIComponent(proxima.destino)}`} target="_blank" rel="noreferrer">
+              <div className="grid-3" style={{ gap: 8 }}>
+                <a className="btn btn-secondary" href={`https://www.google.com/maps/dir/?api=1&destination=${proxima.lat != null ? `${proxima.lat},${proxima.lng}` : encodeURIComponent(proxima.destino)}`} target="_blank" rel="noreferrer">
                   <Icon name="send" size={18} /> Navegar
                 </a>
-                <a className="btn btn-secondary" href="tel:+5581999999999">
-                  <Icon name="phone" size={18} /> Ligar
-                </a>
+                {proxima.telefoneDestinatario ? (
+                  <a className="btn btn-secondary" href={`tel:${digitos(proxima.telefoneDestinatario)}`}>
+                    <Icon name="phone" size={18} /> Ligar
+                  </a>
+                ) : (
+                  <Button variant="secondary" icon="phone" disabled title="Sem telefone cadastrado">
+                    Ligar
+                  </Button>
+                )}
+                <Button variant="secondary" icon="mail" onClick={() => setConversa(proxima)}>
+                  Mensagens
+                </Button>
               </div>
               {PROXIMO[proxima.status] && (
                 <Button variant="violet" block onClick={() => avancar(proxima)} disabled={naFila(proxima.id)}>
-                  {PROXIMO[proxima.status].label}
+                  {naFila(proxima.id) ? 'Aguardando conexão…' : PROXIMO[proxima.status].label}
                 </Button>
               )}
             </Card>
@@ -169,39 +233,43 @@ export default function MinhasEntregas() {
                   {registrando.cliente} — {registrando.destino}
                 </p>
                 <Segmented block label="Resultado" options={RESULTADOS} value={form.resultado} onChange={(v) => setForm({ ...form, resultado: v })} />
-                <label className="photo-drop">
-                  {form.foto ? (
-                    <img src={form.foto} alt="Foto do comprovante" />
-                  ) : (
-                    <>
-                      <Icon name="camera" size={32} color="var(--purple)" />
-                      <span>Tirar foto do comprovante</span>
-                    </>
-                  )}
-                  <input type="file" accept="image/*" capture="environment" hidden onChange={escolherFoto} />
-                </label>
+                {form.resultado !== 'tentativa' && (
+                  <>
+                    <label className="photo-drop">
+                      {form.foto ? (
+                        <img src={form.foto} alt="Foto do comprovante" />
+                      ) : (
+                        <>
+                          <Icon name="camera" size={32} color="var(--purple)" />
+                          <span>{form.resultado === 'avaria' ? 'Fotografe a avaria' : 'Tirar foto do comprovante'}</span>
+                        </>
+                      )}
+                      <input type="file" accept="image/*" capture="environment" hidden onChange={escolherFoto} />
+                    </label>
+                    <span className="label">Assinatura do recebedor</span>
+                    <SignaturePad onChange={(assinatura) => setForm((f) => ({ ...f, assinatura }))} />
+                    <div className="grid-form">
+                      <Field label="Nome do recebedor" value={form.recebedor} onChange={(e) => setForm({ ...form, recebedor: e.target.value })} />
+                      <Field label="Documento (opcional)" value={form.documento} onChange={(e) => setForm({ ...form, documento: e.target.value })} />
+                    </div>
+                    <label className="row">
+                      <input type="checkbox" checked={form.conferido} onChange={(e) => setForm({ ...form, conferido: e.target.checked })} />
+                      <span>Volumes conferidos</span>
+                    </label>
+                  </>
+                )}
                 <span className="small grey">
-                  <Icon name="pin" size={12} color="var(--green)" /> Localização GPS anexada automaticamente
+                  <Icon name="pin" size={12} color={gps.posicao ? 'var(--green)' : 'var(--amber)'} /> {gps.posicao ? `Localização anexada (±${gps.posicao.precisao} m)` : 'A localização será anexada se o GPS responder'}
                 </span>
-                <span className="label">Assinatura do recebedor</span>
-                <SignaturePad onChange={(assinou) => setForm((f) => ({ ...f, assinou }))} />
-                <div className="grid-form">
-                  <Field label="Nome do recebedor" value={form.recebedor} onChange={(e) => setForm({ ...form, recebedor: e.target.value })} />
-                  <Field label="Documento" value={form.documento} onChange={(e) => setForm({ ...form, documento: e.target.value })} />
-                </div>
-                <label className="row">
-                  <input type="checkbox" checked={form.conferido} onChange={(e) => setForm({ ...form, conferido: e.target.checked })} />
-                  <span>Volumes conferidos</span>
-                </label>
-                <Button type="submit" block>
-                  Finalizar entrega
+                <Button type="submit" block disabled={enviando}>
+                  {enviando ? 'Registrando…' : form.resultado === 'tentativa' ? 'Registrar tentativa' : 'Finalizar entrega'}
                 </Button>
               </form>
             </Card>
           )}
 
           <Card title={`Paradas (${paradas.length})`}>
-            {paradas.length === 0 && <p className="muted">Todas as entregas concluídas. 🎉</p>}
+            {paradas.length === 0 && <p className="muted">Nenhuma entrega pendente.</p>}
             {paradas.map((p, i) => {
               const passo = PROXIMO[p.status]
               return (
@@ -209,11 +277,9 @@ export default function MinhasEntregas() {
                   <span className="rota-num">{i + 1}</span>
                   <div className="grow">
                     <strong>{p.cliente}</strong>
-                    <span className="cell-sub">
-                      {p.destino} · janela {p.janela}
-                    </span>
-                    <span className="cell-sub">
-                      {p.id} · {p.tipoCarga}
+                    <span className="cell-sub">{p.destino}</span>
+                    <span className={`cell-sub ${p.atrasada ? 'red' : ''}`}>
+                      {p.id} · {previsaoTexto(p)}
                     </span>
                   </div>
                   <div className="parada-acoes">
@@ -224,7 +290,7 @@ export default function MinhasEntregas() {
                       </Button>
                     )}
                     {['transito', 'saiu'].includes(p.status) && !naFila(p.id) && (
-                      <button className="link small" onClick={() => enviar(p.id, 'atrasado', 'Atraso informado pelo entregador')}>
+                      <button className="link small" onClick={() => mudar(p, 'atrasado', 'Atraso informado pelo entregador')}>
                         Informar atraso
                       </button>
                     )}
@@ -234,13 +300,15 @@ export default function MinhasEntregas() {
             })}
           </Card>
 
-          {concluidas.length > 0 && (
-            <Card title={`Concluídas (${concluidas.length})`}>
-              {concluidas.map((c) => (
+          {concluidasHoje.length > 0 && (
+            <Card title={`Concluídas hoje (${concluidasHoje.length})`}>
+              {concluidasHoje.map((c) => (
                 <div key={c.id} className="row-between small">
                   <span>
                     <strong>{c.cliente}</strong>
-                    <span className="cell-sub">{c.id}</span>
+                    <span className="cell-sub">
+                      {c.id} · {hora(c.entregueEm)}
+                    </span>
                   </span>
                   <EntregaBadge status={c.status} />
                 </div>
@@ -251,6 +319,10 @@ export default function MinhasEntregas() {
 
         <RotaOtimizada compacto chave={chaveRota} onRota={(r) => setOrdemRota(r.paradas.map((p) => p.id))} />
       </div>
+
+      <Modal title={conversa ? `Mensagens · ${conversa.id}` : ''} open={Boolean(conversa)} onClose={() => setConversa(null)}>
+        {conversa && <Conversa entregaId={conversa.id} />}
+      </Modal>
     </Page>
   )
 }
