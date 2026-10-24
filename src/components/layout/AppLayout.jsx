@@ -11,10 +11,19 @@ export default function AppLayout({ perfil }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const { pathname } = useLocation()
 
-  // volta ao topo ao trocar de tela
+  // volta ao topo e fecha o menu ao trocar de tela
   useEffect(() => {
     window.scrollTo(0, 0)
+    setMenuOpen(false)
   }, [pathname])
+
+  // Esc fecha o menu
+  useEffect(() => {
+    if (!menuOpen) return undefined
+    const onKey = (e) => e.key === 'Escape' && setMenuOpen(false)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [menuOpen])
 
   if (carregando) return <div className="empty" style={{ minHeight: '100vh', justifyContent: 'center' }}>Carregando…</div>
   if (!usuario) return <Navigate to="/login" replace state={{ perfil: perfil === 'cliente' ? 'cliente' : 'empresa' }} />
@@ -24,7 +33,7 @@ export default function AppLayout({ perfil }) {
   return (
     <div className="app-shell">
       <Sidebar perfil={perfil} open={menuOpen} onNavigate={() => setMenuOpen(false)} />
-      {menuOpen && <div style={{ position: 'fixed', inset: 0, zIndex: 45 }} onClick={() => setMenuOpen(false)} />}
+      {menuOpen && <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />}
       <main className="app-main">
         <Outlet context={{ perfil, openMenu: () => setMenuOpen(true) }} />
       </main>

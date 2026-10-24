@@ -32,7 +32,7 @@ export default function Topbar({ title, subtitle, actions }) {
 
   return (
     <header className="topbar">
-      <button className="icon-button menu-toggle" onClick={openMenu} aria-label="Abrir menu">
+      <button className="icon-button menu-toggle" onClick={openMenu} aria-label="Abrir menu" title="Menu">
         <Icon name="menu" />
       </button>
       <div className="grow">

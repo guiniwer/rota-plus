@@ -20,7 +20,7 @@ function icone(m) {
 /**
  * Mapa real (OpenStreetMap + Leaflet).
  * props:
- *  - marcadores: [{ id, lat, lng, cor?, forma?: 'ponto' | 'numero' | 'base' | 'veiculo', texto?, titulo?, popup? (linhas de texto), precisao? (m) }]
+ *  - marcadores: [{ id, lat, lng, cor?, forma?: 'ponto' | 'numero' | 'base' | 'veiculo', texto?, titulo?, popup? (linhas de texto), precisao? (m), foraDoEnquadramento? }]
  *  - linhas: [{ pontos: [[lat, lng], ...], cor?, tracejada? }]
  *  - selecionadoId, onSelecionar(id)
  *  - chaveAjuste: quando muda, o mapa reenquadra todos os pontos (padrão: só na primeira vez)
@@ -69,11 +69,13 @@ export default function MapaLeaflet({ marcadores = [], linhas = [], selecionadoI
       mk.addTo(camada)
     }
     const chave = chaveAjuste ?? 'inicial'
-    const pontos = [...validos.map((m) => [m.lat, m.lng]), ...linhas.flatMap((l) => l.pontos ?? [])]
+    const pontos = [...validos.filter((m) => !m.foraDoEnquadramento).map((m) => [m.lat, m.lng]), ...linhas.filter((l) => !l.foraDoEnquadramento).flatMap((l) => l.pontos ?? [])]
     if (pontos.length && ajustadoRef.current !== chave) {
       ajustadoRef.current = chave
+      mapa.invalidateSize() // o tamanho guardado pelo Leaflet pode estar velho (o mapa nasce antes do layout final)
       if (pontos.length === 1) mapa.setView(pontos[0], 15)
-      else mapa.fitBounds(L.latLngBounds(pontos), { padding: [30, 30], maxZoom: 15 })
+      // folga extra no alto para os selos sobrepostos (status, chegada estimada)
+      else mapa.fitBounds(L.latLngBounds(pontos), { paddingTopLeft: [40, 70], paddingBottomRight: [40, 30], maxZoom: 15 })
     }
   }, [marcadores, linhas, selecionadoId, chaveAjuste])
 

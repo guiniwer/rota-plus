@@ -242,7 +242,7 @@ export function seed(db) {
       if (!h.entregador || comGps.has(h.entregador) || !['saiu', 'transito'].includes(status)) continue
       comGps.add(h.entregador)
       const u = ent[h.entregador]
-      const o = h.origemPos ?? u.base ?? { lat: EMPRESA.lat, lng: EMPRESA.lng }
+      const o = u.base ?? h.origemPos ?? { lat: EMPRESA.lat, lng: EMPRESA.lng }
       const alvo = status === 'saiu' ? 0.6 : 0.3 // fração do caminho já percorrida
       let ultimo
       for (let i = 0; i <= 10; i++) {

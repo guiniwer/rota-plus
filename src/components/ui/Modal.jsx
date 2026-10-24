@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import Card from './Card'
 import Icon from './Icon'
 
@@ -12,7 +13,8 @@ export default function Modal({ title, open, onClose, wide, children }) {
   }, [open, onClose])
 
   if (!open) return null
-  return (
+  // renderizado direto no <body>: fica acima de mapas e de qualquer card da página
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <Card
         className={`modal ${wide ? 'modal-wide' : ''}`}
@@ -28,6 +30,7 @@ export default function Modal({ title, open, onClose, wide, children }) {
       >
         {children}
       </Card>
-    </div>
+    </div>,
+    document.body,
   )
 }

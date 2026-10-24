@@ -19,8 +19,13 @@ export default function Sidebar({ perfil, open, onNavigate }) {
   }
 
   return (
-    <aside className={`sidebar ${open ? 'open' : ''}`} aria-label="Menu principal">
-      <Logo />
+    <aside className={`sidebar ${open ? 'open' : ''}`} aria-label="Menu principal" aria-hidden={!open}>
+      <div className="sidebar-topo">
+        <Logo />
+        <button className="icon-button" onClick={onNavigate} aria-label="Fechar menu">
+          <Icon name="x" size={18} />
+        </button>
+      </div>
       <p className="sidebar-section label">Menu</p>
       <nav className="stack-sm" style={{ gap: 4 }}>
         {NAV[perfil].map((item) => (
@@ -47,7 +52,7 @@ export default function Sidebar({ perfil, open, onNavigate }) {
         <Avatar name={usuario?.nome} size={40} />
         <div>
           <strong>{usuario?.nome}</strong>
-          <span className="small muted">{usuario?.cargo}</span>
+          <span className="small muted">{usuario?.empresa ?? 'Meu perfil'}</span>
         </div>
       </NavLink>
     </aside>

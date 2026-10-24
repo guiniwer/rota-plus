@@ -23,7 +23,9 @@ export default function MapaEntrega({ entrega, height = 320, acompanhamento, doc
   const marcadores = useMemo(() => {
     if (!a) return []
     const m = []
-    if (a.origem) m.push({ id: 'origem', lat: a.origem.lat, lng: a.origem.lng, forma: 'base', cor: 'var(--violet)', texto: 'A', popup: ['Origem', entrega.origem] })
+    // com o entregador a caminho, o que importa é ele e o destino: a origem fica no mapa, mas fora do enquadramento
+    const aCaminho = a.entregador?.lat != null && a.destino
+    if (a.origem) m.push({ id: 'origem', lat: a.origem.lat, lng: a.origem.lng, forma: 'base', cor: 'var(--violet)', texto: 'A', popup: ['Origem', entrega.origem], foraDoEnquadramento: aCaminho })
     if (a.destino) m.push({ id: 'destino', lat: a.destino.lat, lng: a.destino.lng, forma: 'numero', texto: 'B', popup: ['Destino', entrega.destino, a.destino.aproximado ? 'Posição aproximada (cidade)' : ''].filter(Boolean) })
     if (a.entregador?.lat != null) m.push({ id: 'entregador', lat: a.entregador.lat, lng: a.entregador.lng, forma: 'veiculo', texto: '➤', cor: '#E856A6', precisao: a.entregador.precisao, popup: [a.entregador.nome, `GPS ${relativo(a.entregador.atualizadoEm)}`] })
     return m
@@ -31,7 +33,7 @@ export default function MapaEntrega({ entrega, height = 320, acompanhamento, doc
   const linhas = useMemo(() => {
     if (!a) return []
     if (a.eta?.trajeto?.length > 1) return [{ pontos: a.eta.trajeto }]
-    if (a.origem && a.destino) return [{ pontos: [[a.origem.lat, a.origem.lng], [a.destino.lat, a.destino.lng]], tracejada: true, cor: '#8E64D8' }]
+    if (a.origem && a.destino) return [{ pontos: [[a.origem.lat, a.origem.lng], [a.destino.lat, a.destino.lng]], tracejada: true, cor: '#8E64D8', foraDoEnquadramento: a.entregador?.lat != null }]
     return []
   }, [a])
 

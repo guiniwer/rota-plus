@@ -2,8 +2,6 @@
    Estrutura da aplicação: sidebar, topbar e barra inferior
    ========================================================== */
 .app-shell {
-  display: grid;
-  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
   min-height: 100vh;
 }
 
@@ -17,11 +15,15 @@
   padding: 8px 40px 40px;
 }
 
-/* ---------- sidebar ---------- */
+/* ---------- menu lateral (hambúrguer): fica escondido e abre por cima da tela ---------- */
 .sidebar {
-  position: sticky;
-  top: 0;
-  height: 100vh;
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 60;
+  width: min(290px, 86vw);
+  transform: translateX(-100%);
+  visibility: hidden;
+  transition: transform 0.22s ease, visibility 0.22s;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -29,6 +31,28 @@
   background: var(--side);
   border-right: 1px solid var(--card);
   overflow-y: auto;
+}
+.sidebar.open {
+  transform: translateX(0);
+  visibility: visible;
+  box-shadow: 8px 0 32px rgba(0, 0, 0, 0.45);
+}
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background: rgba(0, 0, 0, 0.55);
+  animation: fade-in 0.2s ease;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+.sidebar-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
 }
 
 .brand {
@@ -144,7 +168,7 @@
   background: var(--pink);
 }
 .menu-toggle {
-  display: none;
+  flex: none;
 }
 
 /* ---------- barra inferior (mobile) ---------- */
@@ -154,32 +178,6 @@
 
 /* ---------- responsividade ---------- */
 @media (max-width: 1023px) {
-  /* tablet: sidebar só com ícones */
-  :root {
-    --sidebar-w: 76px;
-  }
-  .sidebar {
-    padding: 24px 12px;
-    align-items: center;
-  }
-  .sidebar .brand span,
-  .sidebar-section,
-  .nav-item span,
-  .nav-badge,
-  .user-card div {
-    display: none;
-  }
-  .sidebar .brand {
-    padding: 0 0 20px;
-  }
-  .nav-item {
-    justify-content: center;
-    padding: 12px;
-  }
-  .user-card {
-    padding: 6px;
-    background: none;
-  }
   .topbar,
   .app-body {
     padding-left: 24px;
@@ -191,36 +189,7 @@
 }
 
 @media (max-width: 767px) {
-  /* mobile: sidebar vira barra inferior + menu sobreposto */
-  .app-shell {
-    grid-template-columns: 1fr;
-  }
-  .sidebar {
-    position: fixed;
-    inset: 0 auto 0 0;
-    z-index: 50;
-    width: 280px;
-    align-items: stretch;
-    transform: translateX(-100%);
-    transition: transform 0.2s ease;
-  }
-  .sidebar.open {
-    transform: translateX(0);
-    box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.55);
-  }
-  .sidebar.open .brand span,
-  .sidebar.open .sidebar-section,
-  .sidebar.open .nav-item span,
-  .sidebar.open .nav-badge,
-  .sidebar.open .user-card div {
-    display: initial;
-  }
-  .sidebar.open .nav-item {
-    justify-content: flex-start;
-  }
-  .menu-toggle {
-    display: grid;
-  }
+  /* mobile: barra inferior com os atalhos principais + o mesmo menu hambúrguer */
   .topbar {
     padding: 20px 16px 12px;
     flex-wrap: wrap;

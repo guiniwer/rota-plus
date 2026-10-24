@@ -520,6 +520,7 @@
 .mapa-wrap {
   position: relative;
   width: 100%;
+  isolation: isolate; /* as camadas do Leaflet (z-index 400–1000) ficam contidas no mapa */
 }
 .map-overlay {
   position: absolute;
@@ -575,7 +576,7 @@
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 2000;
   display: grid;
   place-items: center;
   padding: 16px;
@@ -592,7 +593,7 @@
   position: fixed;
   right: 24px;
   bottom: 24px;
-  z-index: 120;
+  z-index: 2100;
   display: flex;
   align-items: center;
   gap: 10px;
