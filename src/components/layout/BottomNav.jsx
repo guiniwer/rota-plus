@@ -24,8 +24,11 @@ export default function BottomNav({ perfil, onOpenMenu }) {
     <nav className="bottom-nav" aria-label="Navegação inferior">
       {left.map(link)}
       {fab && (
-        <NavLink to={fab.to} className="fab" aria-label={fab.label}>
-          <Icon name={fab.icon} size={24} />
+        <NavLink to={fab.to} className={({ isActive }) => `fab ${isActive ? 'active' : ''}`} aria-label={fab.label}>
+          <span className="fab-icone">
+            <Icon name={fab.icon} size={22} />
+          </span>
+          {fab.curto ?? fab.label.split(' ')[0]}
         </NavLink>
       )}
       {right.map(link)}

@@ -225,7 +225,7 @@
     bottom: 0;
     z-index: 40;
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     justify-content: space-around;
     padding: 8px 8px 14px;
     background: var(--card);
@@ -243,15 +243,15 @@
   .bottom-nav a.active {
     color: var(--pink);
   }
-  .bottom-nav .fab {
+  /* ação principal (ex.: Novo pedido): fica na barra como os outros itens, com o ícone numa pílula rosa */
+  .bottom-nav .fab-icone {
     display: grid;
     place-items: center;
-    width: 56px;
-    height: 56px;
-    margin-top: -26px;
-    border-radius: 50%;
+    width: 48px;
+    height: 30px;
+    border-radius: 15px;
     background: var(--pink);
     color: var(--white);
-    box-shadow: 0 6px 18px rgba(232, 86, 166, 0.45);
+    box-shadow: 0 4px 12px rgba(232, 86, 166, 0.35);
   }
 }
